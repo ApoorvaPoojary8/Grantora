@@ -1,0 +1,25 @@
+# VS Code
+.vscode/
+*.code-workspace
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDEs
+.idea/
+*.iml
+
+# Secrets
+.env
+.env.*
+application-local.properties
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
