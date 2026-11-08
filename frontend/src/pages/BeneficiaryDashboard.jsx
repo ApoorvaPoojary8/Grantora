@@ -1,6 +1,7 @@
 
 import LogoutButton from "../components/LogoutButton";
 import BeneficiaryManagement from "./BeneficiaryManagement";
+import SchemeManagement from "./SchemeManagement";
 
 function BeneficiaryDashboard() {
   return (
@@ -24,6 +25,7 @@ function BeneficiaryDashboard() {
         <p>Manage your beneficiary profile below.</p>
 
         <BeneficiaryManagement />
+        <SchemeManagement />
       </main>
     </div>
   );
