@@ -1,7 +1,8 @@
 
 import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 
-function LogoutButton() {
+function LogoutButton({ className = "" }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -15,8 +16,9 @@ function LogoutButton() {
   };
 
   return (
-    <button onClick={handleLogout}>
-      Logout
+    <button className={className} type="button" onClick={handleLogout}>
+      <LogOut size={18} strokeWidth={1.8} aria-hidden="true" />
+      <span className="logout-button__label">Logout</span>
     </button>
   );
 }

@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
-import LogoutButton from "../components/LogoutButton";
 import {
   deleteBeneficiary,
   getBeneficiaries,
   getBeneficiaryById,
 } from "../services/beneficiaryService";
-import GrantApplicationManagement from "./GrantApplicationManagement";
-import SchemeManagement from "./SchemeManagement";
 import "../styles/AdminDashboard.css";
 
 function AdminDashboard() {
@@ -97,12 +94,7 @@ function AdminDashboard() {
 
   return (
     <div className="admin-dashboard">
-      <header className="admin-dashboard__header">
-        <h1>Grantora Admin Dashboard</h1>
-        <LogoutButton />
-      </header>
-
-      <main className="admin-dashboard__main">
+      <div className="admin-dashboard__main">
         <section aria-labelledby="beneficiaries-heading">
           <div className="admin-dashboard__section-heading">
             <div>
@@ -270,9 +262,7 @@ function AdminDashboard() {
             )}
           </section>
         )}
-        <SchemeManagement />
-        <GrantApplicationManagement />
-      </main>
+      </div>
     </div>
   );
 }
