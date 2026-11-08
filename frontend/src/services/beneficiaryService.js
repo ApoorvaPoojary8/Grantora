@@ -1,17 +1,28 @@
-import axios from "axios";
 
-const API_URL = "http://localhost:8080/api/beneficiaries";
+import api from "./api";
 
-export const getBeneficiaries = () => axios.get(API_URL);
+const API_URL = "/beneficiaries";
 
+// Admin: get all beneficiaries
+export const getBeneficiaries = () =>
+  api.get(API_URL);
+
+// Admin: get beneficiary by ID
 export const getBeneficiaryById = (id) =>
-  axios.get(`${API_URL}/${id}`);
+  api.get(`${API_URL}/${id}`);
 
-export const createBeneficiary = (userId, data) =>
-  axios.post(`${API_URL}?userId=${userId}`, data);
+// Logged-in beneficiary: get own profile
+export const getMyBeneficiaryProfile = () =>
+  api.get(`${API_URL}/me`);
 
-export const updateBeneficiary = (id, data) =>
-  axios.put(`${API_URL}/${id}`, data);
+// Logged-in beneficiary: create own profile
+export const createBeneficiary = (data) =>
+  api.post(API_URL, data);
 
+// Logged-in beneficiary: update own profile
+export const updateMyBeneficiaryProfile = (data) =>
+  api.put(`${API_URL}/me`, data);
+
+// Admin: delete beneficiary
 export const deleteBeneficiary = (id) =>
-  axios.delete(`${API_URL}/${id}`);
+  api.delete(`${API_URL}/${id}`);
