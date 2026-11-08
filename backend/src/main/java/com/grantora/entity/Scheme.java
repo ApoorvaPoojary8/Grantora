@@ -4,6 +4,10 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "schemes")
@@ -36,6 +40,17 @@ public class Scheme {
 
     @Column(name = "eligibility_threshold", precision = 5, scale = 2)
     private BigDecimal eligibilityThreshold = BigDecimal.valueOf(70);
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "scheme_eligible_categories",
+            joinColumns = @JoinColumn(name = "scheme_id"))
+    @Column(name = "category", nullable = false, length = 50)
+    private Set<String> eligibleCategories = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "scheme", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("displayOrder ASC")
+    private List<SchemeEligibilityQuestion> eligibilityQuestions = new ArrayList<>();
 
     @Column(name = "application_start_date")
     private LocalDate applicationStartDate;
@@ -118,6 +133,37 @@ public class Scheme {
 
     public void setEligibilityThreshold(BigDecimal eligibilityThreshold) {
         this.eligibilityThreshold = eligibilityThreshold;
+    }
+
+    public Set<String> getEligibleCategories() {
+        return eligibleCategories;
+    }
+
+    public void setEligibleCategories(Set<String> eligibleCategories) {
+        if (this.eligibleCategories == null) {
+            this.eligibleCategories = new LinkedHashSet<>();
+        } else {
+            this.eligibleCategories.clear();
+        }
+        if (eligibleCategories != null) {
+            this.eligibleCategories.addAll(eligibleCategories);
+        }
+    }
+
+    public List<SchemeEligibilityQuestion> getEligibilityQuestions() {
+        return eligibilityQuestions;
+    }
+
+    public void setEligibilityQuestions(
+            List<SchemeEligibilityQuestion> eligibilityQuestions) {
+        if (this.eligibilityQuestions == null) {
+            this.eligibilityQuestions = new ArrayList<>();
+        } else {
+            this.eligibilityQuestions.clear();
+        }
+        if (eligibilityQuestions != null) {
+            this.eligibilityQuestions.addAll(eligibilityQuestions);
+        }
     }
 
     public LocalDate getApplicationStartDate() {

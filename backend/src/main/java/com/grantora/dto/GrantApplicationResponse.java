@@ -14,5 +14,6 @@ public record GrantApplicationResponse(
         String applicationDetails,
         BigDecimal requestedAmount,
         GrantApplicationStatus status,
-        LocalDateTime submittedAt
+        LocalDateTime submittedAt,
+        EligibilityEvaluationResult eligibilityEvaluation
 ) {}

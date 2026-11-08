@@ -8,6 +8,16 @@ import {
 } from "../services/schemeService";
 import "../styles/SchemeManagement.css";
 
+const emptyQuestion = () => ({
+  questionText: "",
+  questionType: "YES_NO",
+  required: true,
+  answerOptions: [
+    { value: "YES", label: "Yes", points: "", meetsEligibilityCondition: true },
+    { value: "NO", label: "No", points: "", meetsEligibilityCondition: false },
+  ],
+});
+
 const emptyForm = {
   schemeName: "",
   description: "",
@@ -17,6 +27,8 @@ const emptyForm = {
   maximumAnnualIncome: "",
   maximumGrantAmount: "",
   eligibilityThreshold: "70",
+  eligibleCategories: "",
+  eligibilityQuestions: Array.from({ length: 5 }, emptyQuestion),
   applicationStartDate: "",
   applicationEndDate: "",
   status: "DRAFT",
@@ -31,24 +43,71 @@ const numericFields = [
 ];
 
 function toFormValues(scheme) {
-  return Object.fromEntries(
-    Object.keys(emptyForm).map((field) => [
-      field,
-      scheme[field] == null ? "" : String(scheme[field]),
-    ])
-  );
+  const questions = (scheme.eligibilityQuestions || []).slice(0, 5);
+  return {
+    ...emptyForm,
+    ...Object.fromEntries(
+      Object.keys(emptyForm)
+        .filter((field) => field !== "eligibilityQuestions")
+        .map((field) => [
+          field,
+          field === "eligibleCategories"
+            ? (scheme.eligibleCategories || []).join(", ")
+            : scheme[field] == null
+              ? ""
+              : String(scheme[field]),
+        ])
+    ),
+    eligibilityQuestions: Array.from({ length: 5 }, (_, index) => {
+      const question = questions[index];
+      return question
+        ? {
+            questionText: question.questionText || "",
+            questionType: question.questionType || "YES_NO",
+            required: question.required !== false,
+            answerOptions: (question.answerOptions || []).map((option) => ({
+              ...option,
+              points: option.points == null ? "" : String(option.points),
+            })),
+          }
+        : emptyQuestion();
+    }),
+  };
 }
 
 function toPayload(form) {
-  return Object.fromEntries(
-    Object.entries(form).map(([field, value]) => {
+  const payload = Object.fromEntries(
+    Object.entries(form)
+      .filter(([field]) => field !== "eligibilityQuestions")
+      .map(([field, value]) => {
       if (!numericFields.includes(field)) {
+        if (field === "eligibleCategories") {
+          return [
+            field,
+            value
+              .split(",")
+              .map((category) => category.trim())
+              .filter(Boolean),
+          ];
+        }
         return [field, value || null];
       }
 
       return [field, value === "" ? null : Number(value)];
-    })
+      })
   );
+  payload.eligibilityQuestions = form.eligibilityQuestions.map((question) => ({
+    questionText: question.questionText.trim(),
+    questionType: question.questionType,
+    required: question.required,
+    answerOptions: question.answerOptions.map((option) => ({
+      value: option.value.trim(),
+      label: option.label.trim(),
+      points: option.points === "" ? null : Number(option.points),
+      meetsEligibilityCondition: option.meetsEligibilityCondition,
+    })),
+  }));
+  return payload;
 }
 
 function displayValue(value) {
@@ -112,6 +171,63 @@ function SchemeManagement() {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const updateQuestion = (questionIndex, update) => {
+    setForm((current) => ({
+      ...current,
+      eligibilityQuestions: current.eligibilityQuestions.map((question, index) =>
+        index === questionIndex ? { ...question, ...update } : question
+      ),
+    }));
+  };
+
+  const handleQuestionTypeChange = (questionIndex, questionType) => {
+    const question = form.eligibilityQuestions[questionIndex];
+    updateQuestion(questionIndex, {
+      questionType,
+      answerOptions:
+        questionType === "YES_NO"
+          ? [
+              { value: "YES", label: "Yes", points: "", meetsEligibilityCondition: true },
+              { value: "NO", label: "No", points: "", meetsEligibilityCondition: false },
+            ]
+          : [
+              { value: "", label: "", points: "", meetsEligibilityCondition: false },
+              { value: "", label: "", points: "", meetsEligibilityCondition: false },
+            ],
+    });
+  };
+
+  const updateAnswerOption = (questionIndex, optionIndex, field, value) => {
+    const question = form.eligibilityQuestions[questionIndex];
+    updateQuestion(questionIndex, {
+      answerOptions: question.answerOptions.map((option, index) =>
+        index === optionIndex ? { ...option, [field]: value } : option
+      ),
+    });
+  };
+
+  const addAnswerOption = (questionIndex) => {
+    const question = form.eligibilityQuestions[questionIndex];
+    updateQuestion(questionIndex, {
+      answerOptions: [
+        ...question.answerOptions,
+        { value: "", label: "", points: "", meetsEligibilityCondition: false },
+      ],
+    });
+  };
+
+  const removeAnswerOption = (questionIndex, optionIndex) => {
+    const question = form.eligibilityQuestions[questionIndex];
+    if (question.answerOptions.length <= 2) {
+      return;
+    }
+    updateQuestion(questionIndex, {
+      answerOptions: question.answerOptions.filter(
+        (_, index) => index !== optionIndex
+      ),
+    });
   };
 
   const resetForm = () => {
@@ -314,6 +430,7 @@ function SchemeManagement() {
                 min="0"
                 value={form.minimumAge}
                 onChange={handleChange}
+                required
               />
             </label>
             <label>
@@ -324,6 +441,7 @@ function SchemeManagement() {
                 min="0"
                 value={form.maximumAge}
                 onChange={handleChange}
+                required
               />
             </label>
             <label>
@@ -335,6 +453,7 @@ function SchemeManagement() {
                 step="0.01"
                 value={form.maximumAnnualIncome}
                 onChange={handleChange}
+                required
               />
             </label>
             <label>
@@ -358,6 +477,17 @@ function SchemeManagement() {
                 step="0.01"
                 value={form.eligibilityThreshold}
                 onChange={handleChange}
+                required
+              />
+            </label>
+            <label className="scheme-management__form-wide">
+              Eligible beneficiary categories (comma-separated)
+              <input
+                name="eligibleCategories"
+                value={form.eligibleCategories}
+                onChange={handleChange}
+                placeholder="For example: category names"
+                required
               />
             </label>
             <label>
@@ -391,6 +521,172 @@ function SchemeManagement() {
               </select>
             </label>
           </div>
+          <section
+            className="scheme-management__questions"
+            aria-labelledby="scheme-questions-heading"
+          >
+            <h4 id="scheme-questions-heading">
+              Custom eligibility questions (exactly five)
+            </h4>
+            <p>
+              Set the score and eligibility condition for each answer. The
+              custom questions are scored together against the threshold.
+            </p>
+            {form.eligibilityQuestions.map((question, questionIndex) => (
+              <fieldset
+                className="scheme-management__question"
+                key={questionIndex}
+              >
+                <legend>Question {questionIndex + 1}</legend>
+                <div className="scheme-management__question-header">
+                  <label>
+                    Question text
+                    <input
+                      value={question.questionText}
+                      onChange={(event) =>
+                        updateQuestion(questionIndex, {
+                          questionText: event.target.value,
+                        })
+                      }
+                      maxLength="500"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Question type
+                    <select
+                      value={question.questionType}
+                      onChange={(event) =>
+                        handleQuestionTypeChange(
+                          questionIndex,
+                          event.target.value
+                        )
+                      }
+                    >
+                      <option value="YES_NO">Yes / No</option>
+                      <option value="MULTIPLE_CHOICE">Multiple choice</option>
+                    </select>
+                  </label>
+                  <label className="scheme-management__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={question.required}
+                      onChange={(event) =>
+                        updateQuestion(questionIndex, {
+                          required: event.target.checked,
+                        })
+                      }
+                    />
+                    Required for eligibility
+                  </label>
+                </div>
+                <div className="scheme-management__options">
+                  {question.answerOptions.map((option, optionIndex) => (
+                    <div
+                      className="scheme-management__option"
+                      key={`${questionIndex}-${optionIndex}`}
+                    >
+                      {question.questionType === "YES_NO" ? (
+                        <label>
+                          Answer
+                          <input value={option.label} readOnly />
+                        </label>
+                      ) : (
+                        <>
+                          <label>
+                            Answer value
+                            <input
+                              value={option.value}
+                              onChange={(event) =>
+                                updateAnswerOption(
+                                  questionIndex,
+                                  optionIndex,
+                                  "value",
+                                  event.target.value
+                                )
+                              }
+                              maxLength="100"
+                              required
+                            />
+                          </label>
+                          <label>
+                            Answer label
+                            <input
+                              value={option.label}
+                              onChange={(event) =>
+                                updateAnswerOption(
+                                  questionIndex,
+                                  optionIndex,
+                                  "label",
+                                  event.target.value
+                                )
+                              }
+                              maxLength="200"
+                              required
+                            />
+                          </label>
+                        </>
+                      )}
+                      <label>
+                        Points
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={option.points}
+                          onChange={(event) =>
+                            updateAnswerOption(
+                              questionIndex,
+                              optionIndex,
+                              "points",
+                              event.target.value
+                            )
+                          }
+                          required
+                        />
+                      </label>
+                      <label className="scheme-management__checkbox">
+                        <input
+                          type="checkbox"
+                          checked={option.meetsEligibilityCondition}
+                          onChange={(event) =>
+                            updateAnswerOption(
+                              questionIndex,
+                              optionIndex,
+                              "meetsEligibilityCondition",
+                              event.target.checked
+                            )
+                          }
+                        />
+                        Meets eligibility condition
+                      </label>
+                      {question.questionType === "MULTIPLE_CHOICE" && (
+                        <button
+                          className="scheme-management__button scheme-management__button--danger"
+                          type="button"
+                          onClick={() =>
+                            removeAnswerOption(questionIndex, optionIndex)
+                          }
+                          disabled={question.answerOptions.length <= 2}
+                        >
+                          Remove option
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {question.questionType === "MULTIPLE_CHOICE" && (
+                  <button
+                    className="scheme-management__button scheme-management__button--secondary"
+                    type="button"
+                    onClick={() => addAnswerOption(questionIndex)}
+                  >
+                    Add answer option
+                  </button>
+                )}
+              </fieldset>
+            ))}
+          </section>
           <div className="scheme-management__form-actions">
             <button
               className="scheme-management__button scheme-management__button--primary"
@@ -579,12 +875,43 @@ function SchemeManagement() {
                 </dd>
               </div>
               <div>
+                <dt>Eligible beneficiary categories</dt>
+                <dd>
+                    {(selectedScheme.eligibleCategories || []).join(", ") || "—"}
+                </dd>
+              </div>
+              <div>
                 <dt>Application start date</dt>
                 <dd>{displayValue(selectedScheme.applicationStartDate)}</dd>
               </div>
               <div>
                 <dt>Application end date</dt>
                 <dd>{displayValue(selectedScheme.applicationEndDate)}</dd>
+              </div>
+              <div className="scheme-management__detail-wide">
+                <dt>Custom eligibility questions</dt>
+                <dd>
+                  <ol className="scheme-management__criteria-list">
+                    {(selectedScheme.eligibilityQuestions || []).map(
+                      (question) => (
+                        <li key={question.id}>
+                          <strong>{question.questionText}</strong>{" "}
+                          ({question.required ? "required" : "optional"})
+                          <ul>
+                            {(question.answerOptions || []).map((option) => (
+                              <li key={option.value}>
+                                {option.label}: {option.points} points
+                                {option.meetsEligibilityCondition
+                                  ? " — meets eligibility condition"
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      )
+                    )}
+                  </ol>
+                </dd>
               </div>
             </dl>
           )}

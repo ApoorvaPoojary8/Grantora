@@ -1,9 +1,13 @@
 package com.grantora.entity;
 
+import com.grantora.dto.EligibilityAnswer;
+import com.grantora.dto.EligibilityEvaluationResult;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(
@@ -37,6 +41,14 @@ public class GrantApplication {
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
+
+    @Convert(converter = EligibilityAnswerListConverter.class)
+    @Column(name = "eligibility_answers", columnDefinition = "TEXT")
+    private List<EligibilityAnswer> eligibilityAnswers = new ArrayList<>();
+
+    @Convert(converter = EligibilityEvaluationResultConverter.class)
+    @Column(name = "eligibility_evaluation", columnDefinition = "TEXT")
+    private EligibilityEvaluationResult eligibilityEvaluation;
 
     public Long getId() {
         return id;
@@ -88,5 +100,24 @@ public class GrantApplication {
 
     public void setSubmittedAt(LocalDateTime submittedAt) {
         this.submittedAt = submittedAt;
+    }
+
+    public List<EligibilityAnswer> getEligibilityAnswers() {
+        return eligibilityAnswers;
+    }
+
+    public void setEligibilityAnswers(List<EligibilityAnswer> eligibilityAnswers) {
+        this.eligibilityAnswers = eligibilityAnswers == null
+                ? new ArrayList<>()
+                : new ArrayList<>(eligibilityAnswers);
+    }
+
+    public EligibilityEvaluationResult getEligibilityEvaluation() {
+        return eligibilityEvaluation;
+    }
+
+    public void setEligibilityEvaluation(
+            EligibilityEvaluationResult eligibilityEvaluation) {
+        this.eligibilityEvaluation = eligibilityEvaluation;
     }
 }

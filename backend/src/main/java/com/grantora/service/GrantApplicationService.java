@@ -4,10 +4,12 @@ import com.grantora.dto.GrantApplicationRequest;
 import com.grantora.dto.GrantApplicationResponse;
 import com.grantora.dto.GrantApplicationStatusRequest;
 import com.grantora.dto.GrantApplicationUpdateRequest;
+import com.grantora.dto.EligibilityAnswer;
 import com.grantora.entity.Beneficiary;
 import com.grantora.entity.GrantApplication;
 import com.grantora.entity.GrantApplicationStatus;
 import com.grantora.entity.Scheme;
+import com.grantora.entity.SchemeEligibilityQuestion;
 import com.grantora.repository.BeneficiaryRepository;
 import com.grantora.repository.GrantApplicationRepository;
 import com.grantora.repository.SchemeRepository;
@@ -27,14 +29,17 @@ public class GrantApplicationService {
     private final GrantApplicationRepository applicationRepository;
     private final BeneficiaryRepository beneficiaryRepository;
     private final SchemeRepository schemeRepository;
+    private final EligibilityScoringService eligibilityScoringService;
 
     public GrantApplicationService(
             GrantApplicationRepository applicationRepository,
             BeneficiaryRepository beneficiaryRepository,
-            SchemeRepository schemeRepository) {
+            SchemeRepository schemeRepository,
+            EligibilityScoringService eligibilityScoringService) {
         this.applicationRepository = applicationRepository;
         this.beneficiaryRepository = beneficiaryRepository;
         this.schemeRepository = schemeRepository;
+        this.eligibilityScoringService = eligibilityScoringService;
     }
 
     @Transactional(readOnly = true)
@@ -91,8 +96,16 @@ public class GrantApplicationService {
         application.setScheme(scheme);
         application.setApplicationDetails(request.applicationDetails().trim());
         application.setRequestedAmount(request.requestedAmount());
+        List<EligibilityAnswer> answers = request.eligibilityAnswers() == null
+                ? List.of()
+                : request.eligibilityAnswers();
+        validateAnswers(scheme, answers);
+        application.setEligibilityAnswers(answers);
 
-        return saveApplication(application);
+        GrantApplication saved = persistApplication(application);
+        saved.setEligibilityEvaluation(eligibilityScoringService.evaluate(
+                saved.getId(), scheme, beneficiary, saved.getEligibilityAnswers()));
+        return saveApplication(saved);
     }
 
     public GrantApplicationResponse updateDraft(
@@ -105,6 +118,15 @@ public class GrantApplicationService {
 
         application.setApplicationDetails(request.applicationDetails().trim());
         application.setRequestedAmount(request.requestedAmount());
+        if (request.eligibilityAnswers() != null) {
+            validateAnswers(application.getScheme(), request.eligibilityAnswers());
+            application.setEligibilityAnswers(request.eligibilityAnswers());
+        }
+        application.setEligibilityEvaluation(eligibilityScoringService.evaluate(
+                application.getId(),
+                application.getScheme(),
+                application.getBeneficiary(),
+                application.getEligibilityAnswers()));
 
         return saveApplication(application);
     }
@@ -114,6 +136,11 @@ public class GrantApplicationService {
         requireOwner(application, email);
         requireDraft(application);
 
+        application.setEligibilityEvaluation(eligibilityScoringService.evaluate(
+                application.getId(),
+                application.getScheme(),
+                application.getBeneficiary(),
+                application.getEligibilityAnswers()));
         application.setStatus(GrantApplicationStatus.SUBMITTED);
         application.setSubmittedAt(LocalDateTime.now());
         return toResponse(applicationRepository.save(application));
@@ -134,8 +161,12 @@ public class GrantApplicationService {
     }
 
     private GrantApplicationResponse saveApplication(GrantApplication application) {
+        return toResponse(persistApplication(application));
+    }
+
+    private GrantApplication persistApplication(GrantApplication application) {
         try {
-            return toResponse(applicationRepository.saveAndFlush(application));
+            return applicationRepository.saveAndFlush(application);
         } catch (DataIntegrityViolationException exception) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -170,6 +201,38 @@ public class GrantApplicationService {
         }
     }
 
+    private void validateAnswers(Scheme scheme, List<EligibilityAnswer> answers) {
+        if (answers.size() > 5) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "At most five eligibility answers are allowed");
+        }
+        java.util.Set<Long> answeredQuestionIds = new java.util.HashSet<>();
+        for (EligibilityAnswer answer : answers) {
+            if (answer == null || answer.questionId() == null
+                    || answer.answer() == null || answer.answer().isBlank()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Eligibility answers need a question and answer");
+            }
+            if (!answeredQuestionIds.add(answer.questionId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "A question may only be answered once");
+            }
+            SchemeEligibilityQuestion question = scheme.getEligibilityQuestions().stream()
+                    .filter(item -> item.getId().equals(answer.questionId()))
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "An eligibility answer does not belong to this scheme"));
+            boolean answerIsConfigured = question.getAnswerOptions().stream()
+                    .anyMatch(option -> option.value().equals(answer.answer()));
+            if (!answerIsConfigured) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "An eligibility answer is not one of the configured options");
+            }
+        }
+    }
+
     private GrantApplicationResponse toResponse(GrantApplication application) {
         return new GrantApplicationResponse(
                 application.getId(),
@@ -180,6 +243,7 @@ public class GrantApplicationService {
                 application.getApplicationDetails(),
                 application.getRequestedAmount(),
                 application.getStatus(),
-                application.getSubmittedAt());
+                application.getSubmittedAt(),
+                application.getEligibilityEvaluation());
     }
 }

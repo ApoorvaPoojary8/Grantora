@@ -15,6 +15,7 @@ const emptyForm = {
   schemeId: "",
   applicationDetails: "",
   requestedAmount: "",
+  eligibilityAnswers: {},
 };
 
 const statuses = [
@@ -38,6 +39,30 @@ function statusTone(status) {
     default:
       return "neutral";
   }
+}
+
+function getEditableEligibilityAnswers(application, scheme) {
+  const results =
+    application.eligibilityEvaluation?.customQuestionResults || [];
+  const usedResults = new Set();
+  return Object.fromEntries(
+    (scheme?.eligibilityQuestions || []).flatMap((question) => {
+      const resultIndex = results.findIndex(
+        (result, index) =>
+          !usedResults.has(index) &&
+          (result.questionId === question.id ||
+            result.questionText === question.questionText) &&
+          (question.answerOptions || []).some(
+            (option) => option.value === result.answerValue
+          )
+      );
+      if (resultIndex === -1) {
+        return [];
+      }
+      usedResults.add(resultIndex);
+      return [[question.id, results[resultIndex].answerValue]];
+    })
+  );
 }
 
 function GrantApplicationManagement() {
@@ -86,14 +111,21 @@ function GrantApplicationManagement() {
   const availableSchemes = schemes.filter(
     (scheme) => scheme.status === "ACTIVE"
   );
+  const selectedScheme = schemes.find(
+    (scheme) => String(scheme.id) === form.schemeId
+  );
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "schemeId" ? { eligibilityAnswers: {} } : {}),
+    }));
   };
 
   const resetForm = () => {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, eligibilityAnswers: {} });
     setEditingId(null);
   };
 
@@ -108,6 +140,12 @@ function GrantApplicationManagement() {
       const payload = {
         applicationDetails: form.applicationDetails.trim(),
         requestedAmount: Number(form.requestedAmount),
+        eligibilityAnswers: Object.entries(form.eligibilityAnswers)
+          .filter(([, answer]) => answer !== "")
+          .map(([questionId, answer]) => ({
+            questionId: Number(questionId),
+            answer,
+          })),
       };
       let savedApplication;
 
@@ -180,11 +218,13 @@ function GrantApplicationManagement() {
   };
 
   const handleEdit = (application) => {
+    const scheme = schemes.find((item) => item.id === application.schemeId);
     setEditingId(application.id);
     setForm({
       schemeId: String(application.schemeId),
       applicationDetails: application.applicationDetails,
       requestedAmount: String(application.requestedAmount),
+      eligibilityAnswers: getEditableEligibilityAnswers(application, scheme),
     });
     setActionError("");
     setSuccessMessage("");
@@ -331,6 +371,59 @@ function GrantApplicationManagement() {
               required
             />
           </label>
+          {selectedScheme && (
+            <section
+              className="grant-applications__eligibility"
+              aria-labelledby="application-eligibility-heading"
+            >
+              <h4 id="application-eligibility-heading">
+                Eligibility criteria
+              </h4>
+              <p>
+                Mandatory: age {selectedScheme.minimumAge ?? "not configured"}–
+                {selectedScheme.maximumAge ?? "not configured"}, annual income
+                up to ₹
+                {selectedScheme.maximumAnnualIncome ?? "not configured"}, and
+                category{" "}
+                {(selectedScheme.eligibleCategories || []).join(", ") ||
+                  "not configured"}
+                . The custom score threshold is{" "}
+                {selectedScheme.eligibilityThreshold ?? "not configured"}%.
+              </p>
+              {(selectedScheme.eligibilityQuestions || []).map((question) => (
+                <label key={question.id}>
+                  {question.questionText}
+                  {!question.required && " (optional)"}
+                  <select
+                    value={form.eligibilityAnswers[question.id] || ""}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        eligibilityAnswers: {
+                          ...current.eligibilityAnswers,
+                          [question.id]: event.target.value,
+                        },
+                      }))
+                    }
+                  >
+                    <option value="">Select an answer</option>
+                    {(question.answerOptions || []).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                        {option.meetsEligibilityCondition
+                          ? " (meets eligibility condition)"
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              <p className="grant-applications__help">
+                Eligibility results inform your application only. They do not
+                approve or reject the grant.
+              </p>
+            </section>
+          )}
           <div className="grant-applications__form-actions">
             <button
               className="grant-applications__button grant-applications__button--secondary"
@@ -375,6 +468,7 @@ function GrantApplicationManagement() {
             <tr>
               {!isBeneficiary && <th scope="col">Beneficiary</th>}
               <th scope="col">Scheme</th>
+              {isBeneficiary && <th scope="col">Eligibility</th>}
               <th scope="col">Requested amount</th>
               <th scope="col">Submitted</th>
               <th scope="col">Status</th>
@@ -386,7 +480,7 @@ function GrantApplicationManagement() {
               <tr>
                 <td
                   className="grant-applications__table-message"
-                  colSpan={isBeneficiary ? 5 : 6}
+                  colSpan="6"
                 >
                   Loading applications...
                 </td>
@@ -395,7 +489,7 @@ function GrantApplicationManagement() {
               <tr>
                 <td
                   className="grant-applications__table-message"
-                  colSpan={isBeneficiary ? 5 : 6}
+                  colSpan="6"
                 >
                   Applications could not be loaded.
                 </td>
@@ -404,7 +498,7 @@ function GrantApplicationManagement() {
               <tr>
                 <td
                   className="grant-applications__table-message"
-                  colSpan={isBeneficiary ? 5 : 6}
+                  colSpan="6"
                 >
                   No grant applications found.
                 </td>
@@ -416,6 +510,13 @@ function GrantApplicationManagement() {
                     <td>{application.beneficiaryName || "—"}</td>
                   )}
                   <td>{application.schemeName || "—"}</td>
+                  {isBeneficiary && (
+                    <td>
+                      {application.eligibilityEvaluation
+                        ? `${application.eligibilityEvaluation.eligibilityStatus} · ${application.eligibilityEvaluation.scoreOutOf100}%`
+                        : "Not evaluated"}
+                    </td>
+                  )}
                   <td>₹{application.requestedAmount}</td>
                   <td>
                     {application.submittedAt
@@ -535,6 +636,78 @@ function GrantApplicationManagement() {
                 <dd>{selectedApplication.applicationDetails}</dd>
               </div>
             </dl>
+          )}
+          {selectedApplication?.eligibilityEvaluation && (
+            <section className="grant-applications__eligibility-result">
+              <h4>Eligibility evaluation</h4>
+              <p>
+                {selectedApplication.eligibilityEvaluation.eligibilityStatus} —{" "}
+                {selectedApplication.eligibilityEvaluation.scoreOutOf100}% (
+                {selectedApplication.eligibilityEvaluation.pointsEarned} of{" "}
+                {
+                  selectedApplication.eligibilityEvaluation
+                    .maximumAvailablePoints
+                }{" "}
+                points)
+              </p>
+              <p>
+                {selectedApplication.eligibilityEvaluation.explanation}
+              </p>
+              <p>
+                Evaluated{" "}
+                {new Date(
+                  selectedApplication.eligibilityEvaluation.evaluatedAt
+                ).toLocaleString()}
+              </p>
+              <h5>Mandatory criteria</h5>
+              <ul>
+                {selectedApplication.eligibilityEvaluation.mandatoryCriteriaResults.map(
+                  (criterion) => (
+                    <li key={criterion.criterion}>
+                      {criterion.criterion}: {criterion.status} —{" "}
+                      {criterion.explanation}
+                    </li>
+                  )
+                )}
+              </ul>
+              <h5>Custom question results</h5>
+              <ul>
+                {selectedApplication.eligibilityEvaluation.customQuestionResults.map(
+                  (result) => (
+                    <li key={result.questionId}>
+                      {result.questionText}: {result.answer || "Not answered"} —{" "}
+                      {result.pointsEarned} points. {result.explanation}
+                    </li>
+                  )
+                )}
+              </ul>
+              {selectedApplication.eligibilityEvaluation.failedCriteria.length >
+                0 && (
+                <>
+                  <h5>Failed criteria</h5>
+                  <ul>
+                    {selectedApplication.eligibilityEvaluation.failedCriteria.map(
+                      (criterion) => (
+                        <li key={criterion}>{criterion}</li>
+                      )
+                    )}
+                  </ul>
+                </>
+              )}
+              {selectedApplication.eligibilityEvaluation.missingInformation
+                .length > 0 && (
+                <>
+                  <h5>Missing information</h5>
+                  <ul>
+                    {selectedApplication.eligibilityEvaluation.missingInformation.map(
+                      (information) => (
+                        <li key={information}>{information}</li>
+                      )
+                    )}
+                  </ul>
+                </>
+              )}
+            </section>
           )}
         </section>
       )}
