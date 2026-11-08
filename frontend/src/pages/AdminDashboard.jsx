@@ -5,6 +5,7 @@ import {
   getBeneficiaries,
   getBeneficiaryById,
 } from "../services/beneficiaryService";
+import GrantApplicationManagement from "./GrantApplicationManagement";
 import SchemeManagement from "./SchemeManagement";
 import "../styles/AdminDashboard.css";
 
@@ -270,6 +271,7 @@ function AdminDashboard() {
           </section>
         )}
         <SchemeManagement />
+        <GrantApplicationManagement />
       </main>
     </div>
   );

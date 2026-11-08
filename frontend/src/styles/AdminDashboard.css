@@ -1,7 +1,7 @@
 .admin-dashboard {
   min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
   text-align: left;
 }
 
@@ -11,8 +11,8 @@
   justify-content: space-between;
   gap: 20px;
   padding: 20px 30px;
-  background: #1e3a8a;
-  color: #ffffff;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .admin-dashboard__header h1 {
@@ -24,10 +24,10 @@
 
 .admin-dashboard__header button {
   padding: 9px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--color-primary-fixed);
   border-radius: 6px;
   background: transparent;
-  color: #ffffff;
+  color: var(--color-on-primary);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -50,22 +50,22 @@
 .admin-dashboard__section-heading h2,
 .admin-dashboard__details h2 {
   margin: 0 0 6px;
-  color: #1e293b;
+  color: var(--color-on-surface);
   font-size: 1.4rem;
   letter-spacing: normal;
 }
 
 .admin-dashboard__section-heading p {
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: 0.95rem;
 }
 
 .admin-dashboard__table-wrap {
   overflow-x: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  background: var(--color-surface-lowest);
+  box-shadow: 0 4px 14px var(--color-shadow);
 }
 
 .admin-dashboard__table {
@@ -77,14 +77,14 @@
 .admin-dashboard__table th,
 .admin-dashboard__table td {
   padding: 14px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-outline-variant);
   text-align: left;
   vertical-align: middle;
 }
 
 .admin-dashboard__table th {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--color-surface-low);
+  color: var(--color-on-surface-variant);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -95,7 +95,7 @@
 
 .admin-dashboard__table-message {
   padding: 28px !important;
-  color: #64748b;
+  color: var(--color-text-muted);
   text-align: center !important;
 }
 
@@ -109,10 +109,10 @@
 .admin-dashboard__secondary-button,
 .admin-dashboard__delete-button {
   padding: 8px 11px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1e3a8a;
+  background: var(--color-surface-lowest);
+  color: var(--color-primary);
   font: inherit;
   font-size: 0.85rem;
   font-weight: 600;
@@ -120,16 +120,16 @@
 }
 
 .admin-dashboard__secondary-button:hover:not(:disabled) {
-  background: #eff6ff;
+  background: var(--color-surface-low);
 }
 
 .admin-dashboard__delete-button {
-  border-color: #fecaca;
-  color: #b91c1c;
+  border-color: var(--color-error-container);
+  color: var(--color-error-text);
 }
 
 .admin-dashboard__delete-button:hover:not(:disabled) {
-  background: #fef2f2;
+  background: var(--color-error-container);
 }
 
 .admin-dashboard__secondary-button:disabled,
@@ -141,7 +141,7 @@
 .admin-dashboard__secondary-button:focus-visible,
 .admin-dashboard__delete-button:focus-visible,
 .admin-dashboard__header button:focus-visible {
-  outline: 3px solid #38bdf8;
+  outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -157,22 +157,22 @@
 }
 
 .admin-dashboard__notice--error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-error-container);
+  color: var(--color-error-text);
 }
 
 .admin-dashboard__notice--success {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--color-success-container);
+  color: var(--color-success);
 }
 
 .admin-dashboard__details {
   margin-top: 24px;
   padding: 22px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  background: var(--color-surface-lowest);
+  box-shadow: 0 4px 14px var(--color-shadow);
 }
 
 .admin-dashboard__details-grid {
@@ -184,7 +184,7 @@
 
 .admin-dashboard__details-grid dt {
   margin-bottom: 4px;
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -192,7 +192,7 @@
 .admin-dashboard__details-grid dd {
   margin: 0;
   overflow-wrap: anywhere;
-  color: #1e293b;
+  color: var(--color-on-surface);
   font-size: 0.95rem;
 }
 

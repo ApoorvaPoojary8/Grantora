@@ -56,7 +56,18 @@ function Register() {
         <p>Create your beneficiary account</p>
 
         {error && <div className="error-message">{error}</div>}
-        {success && <div style={{ color: "green" }}>{success}</div>}
+        {success && (
+          <div
+            style={{
+              color: "var(--color-success)",
+              background: "var(--color-success-container)",
+              padding: "10px 12px",
+              borderRadius: "6px",
+            }}
+          >
+            {success}
+          </div>
+        )}
 
         <label>Full Name</label>
         <input

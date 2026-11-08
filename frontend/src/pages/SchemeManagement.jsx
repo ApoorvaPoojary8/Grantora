@@ -55,6 +55,17 @@ function displayValue(value) {
   return value == null || value === "" ? "—" : value;
 }
 
+function statusTone(status) {
+  switch (status) {
+    case "ACTIVE":
+      return "success";
+    case "INACTIVE":
+      return "secondary";
+    default:
+      return "neutral";
+  }
+}
+
 function SchemeManagement() {
   const role = localStorage.getItem("role");
   const isAdmin = role === "ADMIN";
@@ -453,7 +464,15 @@ function SchemeManagement() {
                     {displayValue(scheme.applicationStartDate)} –{" "}
                     {displayValue(scheme.applicationEndDate)}
                   </td>
-                  <td>{displayValue(scheme.status)}</td>
+                  <td>
+                    <span
+                      className={`scheme-management__status scheme-management__status--${statusTone(
+                        scheme.status
+                      )}`}
+                    >
+                      {displayValue(scheme.status)}
+                    </span>
+                  </td>
                   <td>
                     <div className="scheme-management__actions">
                       <button

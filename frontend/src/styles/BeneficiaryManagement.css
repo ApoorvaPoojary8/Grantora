@@ -2,26 +2,26 @@
   max-width: 850px;
   margin: 40px auto;
   padding: 30px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--color-surface-lowest);
+  color: var(--color-on-surface);
   border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 25px var(--color-shadow);
 }
 
 .beneficiary-page h1 {
-  color: #1e3a8a !important;
+  color: var(--color-primary) !important;
   font-size: 2.5rem;
   text-align: center;
   margin-bottom: 10px;
 }
 
 .beneficiary-page p {
-  color: #64748b !important;
+  color: var(--color-text-muted) !important;
   text-align: center;
 }
 
 .beneficiary-page label {
-  color: #374151 !important;
+  color: var(--color-on-surface-variant) !important;
   font-weight: 600;
   text-align: left;
 }
@@ -32,9 +32,9 @@
   width: 100%;
   box-sizing: border-box;
   padding: 12px;
-  background: #ffffff !important;
-  color: #111827 !important;
-  border: 1px solid #cbd5e1 !important;
+  background: var(--color-surface-lowest) !important;
+  color: var(--color-on-surface) !important;
+  border: 1px solid var(--color-outline-variant) !important;
   border-radius: 8px;
   font-size: 15px;
 }
@@ -43,14 +43,14 @@
 .beneficiary-page textarea:focus,
 .beneficiary-page select:focus {
   outline: none;
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-primary-fixed);
 }
 
 .beneficiary-page button {
   padding: 12px;
-  background: #2563eb !important;
-  color: #ffffff !important;
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
   border: none;
   border-radius: 8px;
   font-weight: 600;
@@ -58,7 +58,7 @@
 }
 
 .beneficiary-page button:hover {
-  background: #1d4ed8 !important;
+  background: var(--color-primary-container) !important;
 }
 
 .beneficiary-page button:disabled {
@@ -69,15 +69,15 @@
 .beneficiary-success {
   padding: 12px;
   margin: 15px 0;
-  background: #dcfce7;
-  color: #166534;
+  background: var(--color-success-container);
+  color: var(--color-success);
   border-radius: 8px;
 }
 
 .beneficiary-error {
   padding: 12px;
   margin: 15px 0;
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-error-container);
+  color: var(--color-error-text);
   border-radius: 8px;
 }

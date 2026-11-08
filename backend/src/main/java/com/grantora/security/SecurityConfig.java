@@ -60,6 +60,21 @@ public class SecurityConfig {
 
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
 
+                .requestMatchers("/api/applications/me").hasRole("BENEFICIARY")
+                .requestMatchers(HttpMethod.POST, "/api/applications/*/submit")
+                    .hasRole("BENEFICIARY")
+                .requestMatchers(HttpMethod.PATCH, "/api/applications/**")
+                    .hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/applications/**")
+                    .hasRole("BENEFICIARY")
+                .requestMatchers(HttpMethod.PUT, "/api/applications/**")
+                    .hasRole("BENEFICIARY")
+                .requestMatchers(HttpMethod.GET, "/api/applications")
+                    .hasAnyRole("ADMIN", "OFFICER")
+                .requestMatchers(HttpMethod.GET, "/api/applications/**")
+                    .hasAnyRole("ADMIN", "OFFICER", "BENEFICIARY")
+                .requestMatchers("/api/applications/**").hasRole("ADMIN")
+
                 .requestMatchers(HttpMethod.GET, "/api/schemes/**")
                     .authenticated()
 

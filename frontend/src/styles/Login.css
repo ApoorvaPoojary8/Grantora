@@ -3,26 +3,31 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #f3f6fb;
-  font-family: Arial, sans-serif;
+  padding: 24px;
+  background: var(--color-surface);
+  font-family: var(--font);
 }
 
 .login-form {
-  width: 350px;
-  padding: 35px;
-  background: white;
+  width: min(100%, 400px);
+  padding: 36px;
+  background: var(--color-surface-lowest);
+  border: 1px solid var(--color-outline-variant);
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 35px var(--color-shadow);
 }
 
 .login-form h1 {
   text-align: center;
-  color: #174ea6;
+  color: var(--color-primary);
 }
 
 .login-form label {
   display: block;
   margin-top: 15px;
+  color: var(--color-on-surface-variant);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .login-form input {
@@ -30,8 +35,15 @@
   box-sizing: border-box;
   padding: 12px;
   margin-top: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 6px;
+  background: var(--color-surface-lowest);
+  color: var(--color-on-surface);
+}
+
+.login-form input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .login-form button {
@@ -40,12 +52,42 @@
   margin-top: 20px;
   border: none;
   border-radius: 6px;
-  background: #174ea6;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.login-form button:hover:not(:disabled) {
+  background: var(--color-primary-container);
+}
+
+.login-form button:focus-visible {
+  outline: 3px solid var(--color-outline);
+  outline-offset: 2px;
+}
+
+.login-form button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.login-form > p {
+  margin-top: 16px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.login-form a {
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .error-message {
-  color: #b00020;
+  color: var(--color-error-text);
   margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--color-error-container);
 }

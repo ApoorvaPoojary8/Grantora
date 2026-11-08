@@ -1,0 +1,295 @@
+.grant-applications {
+  margin: 28px 0;
+  padding: 24px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 12px;
+  background: var(--color-surface-lowest);
+  color: var(--color-on-surface);
+  text-align: left;
+  box-shadow: 0 4px 14px var(--color-shadow);
+}
+
+.grant-applications__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.grant-applications__heading h2 {
+  margin: 0 0 6px;
+  color: var(--color-on-surface);
+  font-size: 1.4rem;
+  letter-spacing: normal;
+}
+
+.grant-applications__heading p,
+.grant-applications__help {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.grant-applications__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 9px;
+  background: var(--color-surface-low);
+}
+
+.grant-applications__form h3,
+.grant-applications__details h3 {
+  margin: 0;
+  color: var(--color-on-surface);
+  font-size: 1.1rem;
+}
+
+.grant-applications__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-on-surface-variant);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.grant-applications__form input,
+.grant-applications__form select,
+.grant-applications__form textarea,
+.grant-applications__table select {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 6px;
+  background: var(--color-surface-lowest);
+  color: var(--color-on-surface);
+  font: inherit;
+}
+
+.grant-applications__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+select.grant-applications__status {
+  cursor: pointer;
+}
+
+.grant-applications__status--primary {
+  background: var(--color-primary-fixed);
+  color: var(--color-primary);
+}
+
+.grant-applications__status--secondary {
+  background: var(--color-secondary-container);
+  color: var(--color-secondary-text);
+}
+
+.grant-applications__status--success {
+  background: var(--color-success-container);
+  color: var(--color-success);
+}
+
+.grant-applications__status--error {
+  background: var(--color-error-container);
+  color: var(--color-error-text);
+}
+
+.grant-applications__status--neutral {
+  background: var(--color-surface-high);
+  color: var(--color-on-surface-variant);
+}
+
+.grant-applications__form input:focus,
+.grant-applications__form select:focus,
+.grant-applications__form textarea:focus,
+.grant-applications__table select:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.grant-applications__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.grant-applications__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 9px;
+}
+
+.grant-applications__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.grant-applications__table th,
+.grant-applications__table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--color-outline-variant);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.grant-applications__table th {
+  background: var(--color-surface-low);
+  color: var(--color-on-surface-variant);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.grant-applications__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.grant-applications__table-message {
+  padding: 26px !important;
+  color: var(--color-text-muted);
+  text-align: center !important;
+}
+
+.grant-applications__actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.grant-applications__button {
+  padding: 8px 11px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.grant-applications__button--primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.grant-applications__button--primary:hover:not(:disabled) {
+  background: var(--color-primary-container);
+}
+
+.grant-applications__button--secondary {
+  background: var(--color-surface-lowest);
+  color: var(--color-primary);
+}
+
+.grant-applications__button--secondary:hover:not(:disabled) {
+  background: var(--color-surface-low);
+}
+
+.grant-applications__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.grant-applications__button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.grant-applications__notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+}
+
+.grant-applications__notice--error {
+  background: var(--color-error-container);
+  color: var(--color-error-text);
+}
+
+.grant-applications__notice--success {
+  background: var(--color-success-container);
+  color: var(--color-success);
+}
+
+.grant-applications__details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 9px;
+  background: var(--color-surface-low);
+}
+
+.grant-applications__details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 22px;
+  margin: 0;
+}
+
+.grant-applications__details-grid dt {
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.grant-applications__details-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-on-surface);
+  font-size: 0.9rem;
+}
+
+.grant-applications__detail-wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 700px) {
+  .grant-applications {
+    padding: 18px;
+  }
+
+  .grant-applications__details-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 440px) {
+  .grant-applications__heading {
+    align-items: flex-start;
+  }
+
+  .grant-applications__details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grant-applications__detail-wide {
+    grid-column: auto;
+  }
+
+  .grant-applications__notice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
