@@ -1,7 +1,10 @@
+
 package com.grantora.controller;
 
+import com.grantora.dto.UserResponse;
 import com.grantora.entity.User;
 import com.grantora.service.UserService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,27 +21,50 @@ public class UserController {
         this.userService = userService;
     }
 
+    private UserResponse toResponse(User user) {
+        return new UserResponse(
+                user.getId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole().name(),
+                user.getActive(),
+                user.getCreatedAt()
+        );
+    }
+
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
+        List<UserResponse> users = userService.getAllUsers()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUserById(id));
+    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+        User user = userService.getUserById(id);
+        return ResponseEntity.ok(toResponse(user));
     }
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
+    public ResponseEntity<UserResponse> createUser(@RequestBody User user) {
         User createdUser = userService.createUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(toResponse(createdUser));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(
+    public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long id,
             @RequestBody User user) {
-        return ResponseEntity.ok(userService.updateUser(id, user));
+
+        User updatedUser = userService.updateUser(id, user);
+        return ResponseEntity.ok(toResponse(updatedUser));
     }
 
     @DeleteMapping("/{id}")
