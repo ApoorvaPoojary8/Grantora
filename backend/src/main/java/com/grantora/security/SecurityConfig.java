@@ -63,6 +63,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/applications/me").hasRole("BENEFICIARY")
                 .requestMatchers(HttpMethod.POST, "/api/applications/*/submit")
                     .hasRole("BENEFICIARY")
+                .requestMatchers(HttpMethod.POST, "/api/applications/*/decision")
+                    .hasAnyRole("ADMIN", "OFFICER")
+                .requestMatchers(HttpMethod.POST, "/api/applications/*/escalate")
+                    .hasAnyRole("ADMIN", "OFFICER")
+                .requestMatchers(HttpMethod.POST, "/api/applications/*/documents")
+                    .hasRole("BENEFICIARY")
                 .requestMatchers(HttpMethod.PATCH, "/api/applications/**")
                     .hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/applications/**")
@@ -81,6 +87,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/schemes/**").hasRole("ADMIN")
 
                 .requestMatchers("/api/beneficiaries/**").authenticated()
+
+                .requestMatchers("/api/verification/**").hasRole("ADMIN")
 
                 .anyRequest().authenticated()
             )

@@ -29,7 +29,10 @@ public class UserController {
                 user.getPhone(),
                 user.getRole().name(),
                 user.getActive(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getOfficerLevel(),
+                user.getJurisdictionState(),
+                user.getJurisdictionDistrict()
         );
     }
 

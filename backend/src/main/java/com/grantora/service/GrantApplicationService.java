@@ -5,21 +5,36 @@ import com.grantora.dto.GrantApplicationResponse;
 import com.grantora.dto.GrantApplicationStatusRequest;
 import com.grantora.dto.GrantApplicationUpdateRequest;
 import com.grantora.dto.EligibilityAnswer;
+import com.grantora.dto.ApplicationDocumentResponse;
+import com.grantora.dto.BeneficiaryVerificationDetails;
+import com.grantora.dto.VerificationDecisionRequest;
+import com.grantora.dto.VerificationHistoryResponse;
+import com.grantora.entity.ApplicationDocument;
+import com.grantora.entity.ApplicationVerification;
 import com.grantora.entity.Beneficiary;
 import com.grantora.entity.GrantApplication;
 import com.grantora.entity.GrantApplicationStatus;
+import com.grantora.entity.Role;
 import com.grantora.entity.Scheme;
 import com.grantora.entity.SchemeEligibilityQuestion;
+import com.grantora.entity.User;
+import com.grantora.repository.ApplicationDocumentRepository;
+import com.grantora.repository.ApplicationVerificationRepository;
 import com.grantora.repository.BeneficiaryRepository;
 import com.grantora.repository.GrantApplicationRepository;
 import com.grantora.repository.SchemeRepository;
+import com.grantora.repository.UserRepository;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.List;
 
 @Service
@@ -30,24 +45,50 @@ public class GrantApplicationService {
     private final BeneficiaryRepository beneficiaryRepository;
     private final SchemeRepository schemeRepository;
     private final EligibilityScoringService eligibilityScoringService;
+    private final VerificationWorkflowService verificationWorkflowService;
+    private final ApplicationVerificationRepository verificationRepository;
+    private final ApplicationDocumentRepository documentRepository;
+    private final UserRepository userRepository;
+
+    private static final long MAX_DOCUMENT_SIZE = 10L * 1024 * 1024;
+    private static final long MAX_DOCUMENTS_PER_APPLICATION = 20;
 
     public GrantApplicationService(
             GrantApplicationRepository applicationRepository,
             BeneficiaryRepository beneficiaryRepository,
             SchemeRepository schemeRepository,
-            EligibilityScoringService eligibilityScoringService) {
+            EligibilityScoringService eligibilityScoringService,
+            VerificationWorkflowService verificationWorkflowService,
+            ApplicationVerificationRepository verificationRepository,
+            ApplicationDocumentRepository documentRepository,
+            UserRepository userRepository) {
         this.applicationRepository = applicationRepository;
         this.beneficiaryRepository = beneficiaryRepository;
         this.schemeRepository = schemeRepository;
         this.eligibilityScoringService = eligibilityScoringService;
+        this.verificationWorkflowService = verificationWorkflowService;
+        this.verificationRepository = verificationRepository;
+        this.documentRepository = documentRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional(readOnly = true)
-    public List<GrantApplicationResponse> getAllApplications() {
-        return applicationRepository.findAllByOrderByIdDesc()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    public List<GrantApplicationResponse> getAllApplications(String email, boolean admin) {
+        List<GrantApplication> applications;
+        if (admin) {
+            applications = applicationRepository.findAllByOrderByIdDesc();
+        } else {
+            User user = getUser(email);
+            if (user.getRole() != Role.OFFICER) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "Only reviewers can view the review queue.");
+            }
+            applications = applicationRepository.findAllByOrderByIdDesc().stream()
+                    .filter(application ->
+                            verificationWorkflowService.canView(application, email, false))
+                    .toList();
+        }
+        return applications.stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -61,8 +102,20 @@ public class GrantApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public GrantApplicationResponse getApplication(Long id) {
-        return toResponse(findApplication(id));
+    public GrantApplicationResponse getApplication(
+            Long id, String email, boolean admin) {
+        GrantApplication application = findApplication(id);
+        if (!admin) {
+            User user = getUser(email);
+            if (user.getRole() == Role.BENEFICIARY) {
+                requireOwner(application, email);
+            } else if (!verificationWorkflowService.canView(application, email, false)) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Application is outside your assignment or jurisdiction.");
+            }
+        }
+        return toResponse(application);
     }
 
     @Transactional(readOnly = true)
@@ -114,7 +167,7 @@ public class GrantApplicationService {
             GrantApplicationUpdateRequest request) {
         GrantApplication application = findApplication(id);
         requireOwner(application, email);
-        requireDraft(application);
+        requireEditable(application);
 
         application.setApplicationDetails(request.applicationDetails().trim());
         application.setRequestedAmount(request.requestedAmount());
@@ -134,30 +187,117 @@ public class GrantApplicationService {
     public GrantApplicationResponse submitDraft(Long id, String email) {
         GrantApplication application = findApplication(id);
         requireOwner(application, email);
-        requireDraft(application);
+        if (application.getStatus() != GrantApplicationStatus.DRAFT
+                && application.getStatus() != GrantApplicationStatus.NEEDS_CORRECTION) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Only drafts or returned applications can be submitted.");
+        }
 
         application.setEligibilityEvaluation(eligibilityScoringService.evaluate(
                 application.getId(),
                 application.getScheme(),
                 application.getBeneficiary(),
                 application.getEligibilityAnswers()));
-        application.setStatus(GrantApplicationStatus.SUBMITTED);
-        application.setSubmittedAt(LocalDateTime.now());
-        return toResponse(applicationRepository.save(application));
+        if (application.getSubmittedAt() == null) {
+            application.setSubmittedAt(LocalDateTime.now());
+        }
+        return toResponse(verificationWorkflowService.submit(application, email));
     }
 
     public GrantApplicationResponse updateStatus(
             Long id,
             GrantApplicationStatusRequest request) {
-        GrantApplication application = findApplication(id);
-        application.setStatus(request.status());
-        application.setSubmittedAt(
-                request.status() == GrantApplicationStatus.DRAFT
-                        ? null
-                        : application.getSubmittedAt() == null
-                                ? LocalDateTime.now()
-                                : application.getSubmittedAt());
-        return toResponse(applicationRepository.save(application));
+        throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Direct status changes are disabled. Use staged verification decisions.");
+    }
+
+    public GrantApplicationResponse decide(
+            Long id,
+            String email,
+            boolean admin,
+            VerificationDecisionRequest request) {
+        return toResponse(verificationWorkflowService.decide(id, email, admin, request));
+    }
+
+    public GrantApplicationResponse escalate(Long id, String email, boolean admin) {
+        return toResponse(verificationWorkflowService.escalate(id, email, admin));
+    }
+
+    @Transactional(readOnly = true)
+    public List<GrantApplicationResponse> getVerificationQueue(String email, boolean admin) {
+        return verificationWorkflowService.getQueue(email, admin).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GrantApplicationResponse> getVerificationHistory(String email, boolean admin) {
+        return verificationWorkflowService.getHistory(email, admin).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public ApplicationDocumentResponse addDocument(
+            Long applicationId, String email, MultipartFile file) {
+        GrantApplication application = findApplication(applicationId);
+        requireOwner(application, email);
+        if (application.getStatus() != GrantApplicationStatus.DRAFT
+                && application.getStatus() != GrantApplicationStatus.NEEDS_CORRECTION) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Documents can only be uploaded to a draft or returned application.");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Choose a non-empty document.");
+        }
+        if (file.getSize() > MAX_DOCUMENT_SIZE) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE, "Documents must not exceed 10 MB.");
+        }
+        if (documentRepository.countByApplication_Id(applicationId)
+                >= MAX_DOCUMENTS_PER_APPLICATION) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "An application can include at most 20 documents.");
+        }
+        String contentType = validateDocument(file);
+        try {
+            ApplicationDocument document = new ApplicationDocument();
+            document.setApplication(application);
+            document.setUploadedBy(getUser(email));
+            document.setFileName(safeFileName(file.getOriginalFilename()));
+            document.setContentType(contentType);
+            document.setFileSize(file.getSize());
+            document.setContent(file.getBytes());
+            return toDocumentResponse(documentRepository.save(document));
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Unable to read the uploaded document.", exception);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ApplicationDocument getDocument(
+            Long applicationId, Long documentId, String email, boolean admin) {
+        GrantApplication application = findApplication(applicationId);
+        authorizeRead(application, email, admin);
+        return documentRepository.findByIdAndApplication_Id(documentId, applicationId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Application document not found."));
+    }
+
+    private void authorizeRead(GrantApplication application, String email, boolean admin) {
+        if (admin) return;
+        User user = getUser(email);
+        if (user.getRole() == Role.BENEFICIARY) {
+            requireOwner(application, email);
+        } else if (!verificationWorkflowService.canView(application, email, false)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Application document is outside your assignment or jurisdiction.");
+        }
     }
 
     private GrantApplicationResponse saveApplication(GrantApplication application) {
@@ -194,11 +334,19 @@ public class GrantApplicationService {
         }
     }
 
-    private void requireDraft(GrantApplication application) {
-        if (application.getStatus() != GrantApplicationStatus.DRAFT) {
+    private void requireEditable(GrantApplication application) {
+        if (application.getStatus() != GrantApplicationStatus.DRAFT
+                && application.getStatus() != GrantApplicationStatus.NEEDS_CORRECTION) {
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "Only draft applications can be changed or submitted");
+                    HttpStatus.CONFLICT,
+                    "Only a draft or returned application can be changed.");
         }
+    }
+
+    private User getUser(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User not found."));
     }
 
     private void validateAnswers(Scheme scheme, List<EligibilityAnswer> answers) {
@@ -234,6 +382,13 @@ public class GrantApplicationService {
     }
 
     private GrantApplicationResponse toResponse(GrantApplication application) {
+        List<VerificationHistoryResponse> history =
+                verificationRepository.findByApplication_IdOrderByCreatedAtAsc(application.getId())
+                        .stream()
+                        .map(this::toHistoryResponse)
+                        .toList();
+        List<ApplicationDocumentResponse> documents =
+                documentRepository.findMetadataByApplicationId(application.getId());
         return new GrantApplicationResponse(
                 application.getId(),
                 application.getBeneficiary().getId(),
@@ -244,6 +399,98 @@ public class GrantApplicationService {
                 application.getRequestedAmount(),
                 application.getStatus(),
                 application.getSubmittedAt(),
-                application.getEligibilityEvaluation());
+                application.getEligibilityEvaluation(),
+                application.getWorkflowStage() == null
+                        ? null : application.getWorkflowStage().name(),
+                application.getAssignedOfficer() == null
+                        ? null : application.getAssignedOfficer().getId(),
+                application.getAssignedOfficer() == null
+                        ? null : application.getAssignedOfficer().getFullName(),
+                application.getRoutingPriority() == null
+                        ? "NORMAL" : application.getRoutingPriority().name(),
+                application.isEscalated(),
+                history,
+                documents,
+                new BeneficiaryVerificationDetails(
+                        application.getBeneficiary().getUser().getEmail(),
+                        application.getBeneficiary().getUser().getPhone(),
+                        application.getBeneficiary().getDateOfBirth(),
+                        application.getBeneficiary().getAnnualIncome(),
+                        application.getBeneficiary().getAddress(),
+                        application.getBeneficiary().getState(),
+                        application.getBeneficiary().getDistrict(),
+                        application.getBeneficiary().getCategory()));
+    }
+
+    private VerificationHistoryResponse toHistoryResponse(ApplicationVerification item) {
+        return new VerificationHistoryResponse(
+                item.getId(),
+                item.getStage().name(),
+                item.getAction(),
+                item.getActor() == null ? null : item.getActor().getId(),
+                item.getActor() == null ? "System" : item.getActor().getFullName(),
+                item.getAssignedOfficer() == null ? null : item.getAssignedOfficer().getId(),
+                item.getAssignedOfficer() == null
+                        ? null : item.getAssignedOfficer().getFullName(),
+                item.getRemarks(),
+                item.getCreatedAt(),
+                item.isIdentityVerified(),
+                item.isAddressVerified(),
+                item.isDocumentsVerified(),
+                item.isApplicationDetailsVerified());
+    }
+
+    private ApplicationDocumentResponse toDocumentResponse(ApplicationDocument document) {
+        return new ApplicationDocumentResponse(
+                document.getId(),
+                document.getFileName(),
+                document.getContentType(),
+                document.getFileSize(),
+                document.getUploadedBy().getFullName(),
+                document.getUploadedAt());
+    }
+
+    private String validateDocument(MultipartFile file) {
+        String fileName = safeFileName(file.getOriginalFilename());
+        String extension = fileName.contains(".")
+                ? fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT)
+                : "";
+        String contentType = file.getContentType() == null
+                ? "" : file.getContentType().toLowerCase(Locale.ROOT);
+        try {
+            byte[] header = file.getBytes();
+            boolean pdf = extension.equals("pdf")
+                    && contentType.equals("application/pdf")
+                    && new String(header, 0, Math.min(5, header.length),
+                    StandardCharsets.US_ASCII).startsWith("%PDF-");
+            boolean png = extension.equals("png") && contentType.equals("image/png")
+                    && header.length >= 8 && (header[0] & 0xff) == 0x89
+                    && header[1] == 0x50 && header[2] == 0x4e && header[3] == 0x47;
+            boolean jpeg = (extension.equals("jpg") || extension.equals("jpeg"))
+                    && contentType.equals("image/jpeg") && header.length >= 3
+                    && (header[0] & 0xff) == 0xff && (header[1] & 0xff) == 0xd8
+                    && (header[2] & 0xff) == 0xff;
+            if (pdf || png || jpeg) return contentType;
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Unable to inspect uploaded document.", exception);
+        }
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Only valid PDF, PNG, and JPEG documents are allowed.");
+    }
+
+    private String safeFileName(String originalName) {
+        if (originalName == null || originalName.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Document file name is required.");
+        }
+        String fileName = originalName.replace('\\', '/');
+        fileName = fileName.substring(fileName.lastIndexOf('/') + 1)
+                .replaceAll("[\\p{Cntrl}]", "").trim();
+        if (fileName.isBlank() || fileName.length() > 255) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Document file name is invalid or too long.");
+        }
+        return fileName;
     }
 }

@@ -1,6 +1,7 @@
 package com.grantora.repository;
 
 import com.grantora.entity.GrantApplication;
+import com.grantora.entity.GrantApplicationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -13,4 +14,7 @@ public interface GrantApplicationRepository
     List<GrantApplication> findAllByOrderByIdDesc();
 
     List<GrantApplication> findByBeneficiary_IdOrderByIdDesc(Long beneficiaryId);
+
+    List<GrantApplication> findByAssignedOfficer_IdAndStatusInOrderByIdDesc(
+            Long officerId, List<GrantApplicationStatus> statuses);
 }

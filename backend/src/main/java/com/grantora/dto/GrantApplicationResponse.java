@@ -4,6 +4,7 @@ import com.grantora.entity.GrantApplicationStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record GrantApplicationResponse(
         Long id,
@@ -15,5 +16,13 @@ public record GrantApplicationResponse(
         BigDecimal requestedAmount,
         GrantApplicationStatus status,
         LocalDateTime submittedAt,
-        EligibilityEvaluationResult eligibilityEvaluation
+        EligibilityEvaluationResult eligibilityEvaluation,
+        String workflowStage,
+        Long assignedOfficerId,
+        String assignedOfficerName,
+        String routingPriority,
+        boolean escalated,
+        List<VerificationHistoryResponse> verificationHistory,
+        List<ApplicationDocumentResponse> documents,
+        BeneficiaryVerificationDetails beneficiaryDetails
 ) {}

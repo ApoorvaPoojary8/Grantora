@@ -12,6 +12,10 @@
 }
 
 .dashboard-sidebar {
+  --sidebar-text: #f8fafc;
+  --sidebar-muted: #aab8ca;
+  --sidebar-hover: rgb(255 255 255 / 9%);
+  --sidebar-active: #164e8a;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -21,8 +25,8 @@
   flex-direction: column;
   padding: 22px 14px 14px;
   overflow: hidden;
-  border-right: 1px solid var(--color-outline-variant);
-  background: var(--color-surface-lowest);
+  border-right: 1px solid #263b55;
+  background: #0b1c30;
 }
 
 .dashboard-sidebar__brand-row {
@@ -38,7 +42,7 @@
   min-width: 0;
   align-items: center;
   gap: 11px;
-  color: var(--color-on-surface);
+  color: var(--sidebar-text);
   text-decoration: none;
 }
 
@@ -68,7 +72,7 @@
 
 .dashboard-sidebar__section-label {
   margin: 0 10px 11px;
-  color: var(--color-text-muted);
+  color: var(--sidebar-muted);
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -93,7 +97,7 @@
   padding: 0 12px;
   overflow: hidden;
   border-radius: 9px;
-  color: var(--color-on-surface-variant);
+  color: var(--sidebar-muted);
   font-size: 0.86rem;
   font-weight: 550;
   text-decoration: none;
@@ -104,13 +108,13 @@
 }
 
 .dashboard-sidebar__link:hover {
-  background: var(--color-surface-low);
-  color: var(--color-primary);
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
 }
 
 .dashboard-sidebar__link--active {
-  background: var(--color-primary-fixed);
-  color: var(--color-primary);
+  background: var(--sidebar-active);
+  color: #ffffff;
   font-weight: 700;
 }
 
@@ -119,7 +123,7 @@
   inset: 9px auto 9px 0;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--color-primary);
+  background: #38bdf8;
   content: "";
 }
 
@@ -137,7 +141,7 @@
   gap: 11px;
   margin-top: auto;
   padding: 15px 3px 0;
-  border-top: 1px solid var(--color-outline-variant);
+  border-top: 1px solid #263b55;
 }
 
 .dashboard-sidebar__user {
@@ -156,8 +160,8 @@
   flex: 0 0 36px;
   place-items: center;
   border-radius: 50%;
-  background: var(--color-secondary-container);
-  color: var(--color-primary);
+  background: #164e8a;
+  color: #ffffff;
   font-size: 0.77rem;
   font-weight: 750;
 }
@@ -172,7 +176,7 @@
 .dashboard-sidebar__user-copy strong,
 .dashboard-topbar__profile-copy strong {
   overflow: hidden;
-  color: var(--color-on-surface);
+  color: var(--sidebar-text);
   font-size: 0.78rem;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -182,7 +186,7 @@
 .dashboard-sidebar__user-copy span,
 .dashboard-topbar__profile-copy span {
   overflow: hidden;
-  color: var(--color-text-muted);
+  color: var(--sidebar-muted);
   font-size: 0.7rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -198,7 +202,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--color-error-text);
+  color: #fca5a5;
   cursor: pointer;
   font-size: 0.84rem;
   font-weight: 600;
@@ -206,7 +210,7 @@
 }
 
 .dashboard-sidebar__logout:hover {
-  background: var(--color-error-container);
+  background: rgb(248 113 113 / 12%);
 }
 
 .dashboard-main {

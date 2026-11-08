@@ -50,6 +50,20 @@ public class GrantApplication {
     @Column(name = "eligibility_evaluation", columnDefinition = "TEXT")
     private EligibilityEvaluationResult eligibilityEvaluation;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "workflow_stage", length = 20)
+    private VerificationStage workflowStage;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_officer_id")
+    private User assignedOfficer;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "routing_priority", length = 20)
+    private RoutingPriority routingPriority = RoutingPriority.NORMAL;
+
+    private Boolean escalated = false;
+
     public Long getId() {
         return id;
     }
@@ -119,5 +133,37 @@ public class GrantApplication {
     public void setEligibilityEvaluation(
             EligibilityEvaluationResult eligibilityEvaluation) {
         this.eligibilityEvaluation = eligibilityEvaluation;
+    }
+
+    public VerificationStage getWorkflowStage() {
+        return workflowStage;
+    }
+
+    public void setWorkflowStage(VerificationStage workflowStage) {
+        this.workflowStage = workflowStage;
+    }
+
+    public User getAssignedOfficer() {
+        return assignedOfficer;
+    }
+
+    public void setAssignedOfficer(User assignedOfficer) {
+        this.assignedOfficer = assignedOfficer;
+    }
+
+    public RoutingPriority getRoutingPriority() {
+        return routingPriority;
+    }
+
+    public void setRoutingPriority(RoutingPriority routingPriority) {
+        this.routingPriority = routingPriority;
+    }
+
+    public boolean isEscalated() {
+        return Boolean.TRUE.equals(escalated);
+    }
+
+    public void setEscalated(boolean escalated) {
+        this.escalated = escalated;
     }
 }

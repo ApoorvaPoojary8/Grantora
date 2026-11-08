@@ -4,14 +4,21 @@ import com.grantora.dto.GrantApplicationRequest;
 import com.grantora.dto.GrantApplicationResponse;
 import com.grantora.dto.GrantApplicationStatusRequest;
 import com.grantora.dto.GrantApplicationUpdateRequest;
+import com.grantora.dto.ApplicationDocumentResponse;
+import com.grantora.dto.VerificationDecisionRequest;
+import com.grantora.entity.ApplicationDocument;
 import com.grantora.service.GrantApplicationService;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -25,8 +32,9 @@ public class GrantApplicationController {
     }
 
     @GetMapping
-    public List<GrantApplicationResponse> getApplications() {
-        return applicationService.getAllApplications();
+    public List<GrantApplicationResponse> getApplications(Authentication authentication) {
+        return applicationService.getAllApplications(
+                authentication.getName(), hasRole(authentication, "ROLE_ADMIN"));
     }
 
     @GetMapping("/me")
@@ -35,14 +43,26 @@ public class GrantApplicationController {
         return applicationService.getMyApplications(authentication.getName());
     }
 
+    @GetMapping("/verification/assigned")
+    public List<GrantApplicationResponse> getVerificationQueue(
+            Authentication authentication) {
+        return applicationService.getVerificationQueue(
+                authentication.getName(), hasRole(authentication, "ROLE_ADMIN"));
+    }
+
+    @GetMapping("/verification/history")
+    public List<GrantApplicationResponse> getVerificationHistory(
+            Authentication authentication) {
+        return applicationService.getVerificationHistory(
+                authentication.getName(), hasRole(authentication, "ROLE_ADMIN"));
+    }
+
     @GetMapping("/{id}")
     public GrantApplicationResponse getApplication(
             @PathVariable Long id,
             Authentication authentication) {
-        if (hasRole(authentication, "ROLE_BENEFICIARY")) {
-            return applicationService.getMyApplication(id, authentication.getName());
-        }
-        return applicationService.getApplication(id);
+        return applicationService.getApplication(
+                id, authentication.getName(), hasRole(authentication, "ROLE_ADMIN"));
     }
 
     @PostMapping
@@ -74,6 +94,49 @@ public class GrantApplicationController {
             @PathVariable Long id,
             @Valid @RequestBody GrantApplicationStatusRequest request) {
         return applicationService.updateStatus(id, request);
+    }
+
+    @PostMapping("/{id}/decision")
+    public GrantApplicationResponse decide(
+            @PathVariable Long id,
+            Authentication authentication,
+            @Valid @RequestBody VerificationDecisionRequest request) {
+        return applicationService.decide(
+                id, authentication.getName(), hasRole(authentication, "ROLE_ADMIN"), request);
+    }
+
+    @PostMapping("/{id}/escalate")
+    public GrantApplicationResponse escalate(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return applicationService.escalate(
+                id, authentication.getName(), hasRole(authentication, "ROLE_ADMIN"));
+    }
+
+    @PostMapping(value = "/{id}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApplicationDocumentResponse addDocument(
+            @PathVariable Long id,
+            Authentication authentication,
+            @RequestPart("file") MultipartFile file) {
+        return applicationService.addDocument(id, authentication.getName(), file);
+    }
+
+    @GetMapping("/{id}/documents/{documentId}")
+    public ResponseEntity<byte[]> getDocument(
+            @PathVariable Long id,
+            @PathVariable Long documentId,
+            Authentication authentication) {
+        ApplicationDocument document = applicationService.getDocument(
+                id, documentId, authentication.getName(),
+                hasRole(authentication, "ROLE_ADMIN"));
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(document.getContentType()))
+                .contentLength(document.getFileSize())
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Disposition", ContentDisposition.attachment()
+                        .filename(document.getFileName(), StandardCharsets.UTF_8).build().toString())
+                .body(document.getContent());
     }
 
     private boolean hasRole(Authentication authentication, String role) {

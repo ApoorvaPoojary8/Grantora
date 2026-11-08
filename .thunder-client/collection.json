@@ -1,0 +1,296 @@
+{
+  "clientName": "Thunder Client",
+  "collectionName": "Grantora — Authentication & Beneficiary Testing",
+  "collectionId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901",
+  "dateExported": "2026-11-08T12:15:00.000Z",
+  "version": "1.2",
+  "folders": [
+    { "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001", "name": "Authentication", "containerId": "", "created": "2026-11-08T12:15:00.000Z", "sortNum": 10000 },
+    { "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731002", "name": "JWT Security", "containerId": "", "created": "2026-11-08T12:15:00.000Z", "sortNum": 20000 },
+    { "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003", "name": "Role-Based Access", "containerId": "", "created": "2026-11-08T12:15:00.000Z", "sortNum": 30000 },
+    { "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004", "name": "Beneficiary Profile", "containerId": "", "created": "2026-11-08T12:15:00.000Z", "sortNum": 40000 },
+    { "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005", "name": "Admin Beneficiary Management", "containerId": "", "created": "2026-11-08T12:15:00.000Z", "sortNum": 50000 }
+  ],
+  "requests": [
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732001", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Register valid beneficiary", "url": "{{baseUrl}}/auth/register", "method": "POST", "sortNum": 10000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"fullName\":\"{{beneficiaryName}}\",\"email\":\"{{beneficiaryEmail}}\",\"password\":\"{{beneficiaryPassword}}\",\"phone\":\"{{beneficiaryPhone}}\",\"role\":\"BENEFICIARY\"}", "form": [] },
+      "tests": [
+        { "type": "res-code", "custom": "", "action": "equal", "value": "201" },
+        { "type": "set-env-var", "custom": "json.userId", "action": "setto", "value": "{{beneficiaryUserId}}" }
+      ]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732047", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Registration cannot self-assign ADMIN", "url": "{{baseUrl}}/auth/register", "method": "POST", "sortNum": 15000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"fullName\":\"{{beneficiaryName}}\",\"email\":\"{{roleEscalationEmail}}\",\"password\":\"{{beneficiaryPassword}}\",\"phone\":\"{{beneficiaryPhone}}\",\"role\":\"ADMIN\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "201" }, { "type": "json-query", "custom": "json.role", "action": "equal", "value": "BENEFICIARY" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732002", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Register missing required fields", "url": "{{baseUrl}}/auth/register", "method": "POST", "sortNum": 20000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{missingFieldsEmail}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "400" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732003", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Register invalid email", "url": "{{baseUrl}}/auth/register", "method": "POST", "sortNum": 30000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"fullName\":\"{{beneficiaryName}}\",\"email\":\"{{invalidEmail}}\",\"password\":\"{{beneficiaryPassword}}\",\"phone\":\"{{beneficiaryPhone}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "400" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732004", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Register duplicate email", "url": "{{baseUrl}}/auth/register", "method": "POST", "sortNum": 40000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"fullName\":\"{{beneficiaryName}}\",\"email\":\"{{beneficiaryEmail}}\",\"password\":\"{{beneficiaryPassword}}\",\"phone\":\"{{beneficiaryPhone}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "409" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732005", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Register weak password", "url": "{{baseUrl}}/auth/register", "method": "POST", "sortNum": 50000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"fullName\":\"{{beneficiaryName}}\",\"email\":\"{{weakPasswordEmail}}\",\"password\":\"{{weakPassword}}\",\"phone\":\"{{beneficiaryPhone}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "400" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732006", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Login beneficiary (captures token)", "url": "{{baseUrl}}/auth/login", "method": "POST", "sortNum": 60000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{beneficiaryEmail}}\",\"password\":\"{{beneficiaryPassword}}\"}", "form": [] },
+      "tests": [
+        { "type": "res-code", "custom": "", "action": "equal", "value": "200" },
+        { "type": "set-env-var", "custom": "json.token", "action": "setto", "value": "{{beneficiaryToken}}" }
+      ]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732007", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Login incorrect password", "url": "{{baseUrl}}/auth/login", "method": "POST", "sortNum": 70000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{beneficiaryEmail}}\",\"password\":\"{{incorrectPassword}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "401" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732008", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Login unknown email", "url": "{{baseUrl}}/auth/login", "method": "POST", "sortNum": 80000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{unknownEmail}}\",\"password\":\"{{beneficiaryPassword}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "401" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732009", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Login missing fields", "url": "{{baseUrl}}/auth/login", "method": "POST", "sortNum": 90000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{beneficiaryEmail}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "400" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732010", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Login admin (captures token)", "url": "{{baseUrl}}/auth/login", "method": "POST", "sortNum": 100000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{adminEmail}}\",\"password\":\"{{adminPassword}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }, { "type": "set-env-var", "custom": "json.token", "action": "setto", "value": "{{adminToken}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732011", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Login officer (captures token)", "url": "{{baseUrl}}/auth/login", "method": "POST", "sortNum": 110000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{officerEmail}}\",\"password\":\"{{officerPassword}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }, { "type": "set-env-var", "custom": "json.token", "action": "setto", "value": "{{officerToken}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732012", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731001",
+      "name": "Login second beneficiary (captures token)", "url": "{{baseUrl}}/auth/login", "method": "POST", "sortNum": 120000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"email\":\"{{secondBeneficiaryEmail}}\",\"password\":\"{{secondBeneficiaryPassword}}\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }, { "type": "set-env-var", "custom": "json.token", "action": "setto", "value": "{{secondBeneficiaryToken}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732013", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731002",
+      "name": "Protected endpoint without JWT", "url": "{{baseUrl}}/users", "method": "GET", "sortNum": 130000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z", "headers": [],
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "401" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732014", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731002",
+      "name": "Protected endpoint with invalid JWT", "url": "{{baseUrl}}/users", "method": "GET", "sortNum": 140000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer invalid.token.value" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "401" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732015", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731002",
+      "name": "Protected endpoint with expired JWT (supply expiredToken)", "url": "{{baseUrl}}/users", "method": "GET", "sortNum": 150000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{expiredToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "401" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732016", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731002",
+      "name": "Protected beneficiary profile with valid JWT", "url": "{{baseUrl}}/beneficiaries/me", "method": "GET", "sortNum": 160000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732017", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731002",
+      "name": "Public health endpoint without JWT", "url": "http://localhost:8080/", "method": "GET", "sortNum": 170000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z", "headers": [],
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732018", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003",
+      "name": "Admin can list users", "url": "{{baseUrl}}/users", "method": "GET", "sortNum": 180000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{adminToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732019", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003",
+      "name": "Beneficiary forbidden from listing users", "url": "{{baseUrl}}/users", "method": "GET", "sortNum": 190000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732020", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003",
+      "name": "Officer forbidden from listing users", "url": "{{baseUrl}}/users", "method": "GET", "sortNum": 200000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{officerToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732021", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003",
+      "name": "Admin can list beneficiaries", "url": "{{baseUrl}}/beneficiaries", "method": "GET", "sortNum": 210000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{adminToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732022", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003",
+      "name": "Beneficiary forbidden from listing all beneficiaries", "url": "{{baseUrl}}/beneficiaries", "method": "GET", "sortNum": 220000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732023", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003",
+      "name": "Officer forbidden from listing all beneficiaries", "url": "{{baseUrl}}/beneficiaries", "method": "GET", "sortNum": 230000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{officerToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732024", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731003",
+      "name": "Beneficiary forbidden from reading beneficiary by ID", "url": "{{baseUrl}}/beneficiaries/{{otherBeneficiaryId}}", "method": "GET", "sortNum": 240000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732025", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Create profile without authentication", "url": "{{baseUrl}}/beneficiaries", "method": "POST", "sortNum": 250000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1990-01-15\",\"annualIncome\":25000,\"address\":\"Test Address\",\"state\":\"Test State\",\"district\":\"Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "401" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732026", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Create own beneficiary profile", "url": "{{baseUrl}}/beneficiaries", "method": "POST", "sortNum": 260000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1990-01-15\",\"annualIncome\":25000,\"address\":\"Test Address\",\"state\":\"Test State\",\"district\":\"Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "201" }, { "type": "set-env-var", "custom": "json.id", "action": "setto", "value": "{{beneficiaryProfileId}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732027", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Create incomplete profile data", "url": "{{baseUrl}}/beneficiaries", "method": "POST", "sortNum": 270000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1990-01-15\"}", "form": [] }, "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "400" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732028", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Create duplicate profile", "url": "{{baseUrl}}/beneficiaries", "method": "POST", "sortNum": 280000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1990-01-15\",\"annualIncome\":25000,\"address\":\"Test Address\",\"state\":\"Test State\",\"district\":\"Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "409" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732029", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Read own profile (email and no password fields)", "url": "{{baseUrl}}/beneficiaries/me", "method": "GET", "sortNum": 290000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }],
+      "tests": [
+        { "type": "res-code", "custom": "", "action": "equal", "value": "200" },
+        { "type": "json-query", "custom": "json.email", "action": "equal", "value": "{{beneficiaryEmail}}" },
+        { "type": "res-body", "custom": "", "action": "notcontains", "value": "password" }
+      ]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732030", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Create second beneficiary's own profile", "url": "{{baseUrl}}/beneficiaries", "method": "POST", "sortNum": 300000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{secondBeneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1988-03-20\",\"annualIncome\":30000,\"address\":\"Second Test Address\",\"state\":\"Test State\",\"district\":\"Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "201" }, { "type": "set-env-var", "custom": "json.id", "action": "setto", "value": "{{secondBeneficiaryProfileId}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732031", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Second beneficiary reads own profile", "url": "{{baseUrl}}/beneficiaries/me", "method": "GET", "sortNum": 310000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{secondBeneficiaryToken}}" }],
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }, { "type": "json-query", "custom": "json.email", "action": "equal", "value": "{{secondBeneficiaryEmail}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732032", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Update own profile", "url": "{{baseUrl}}/beneficiaries/me", "method": "PUT", "sortNum": 320000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1990-01-15\",\"annualIncome\":26000,\"address\":\"Updated Test Address\",\"state\":\"Updated Test State\",\"district\":\"Updated Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }, { "type": "json-query", "custom": "json.annualIncome", "action": "equal", "value": "26000.00" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732044", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Attempt to update profile by another beneficiary ID (unsupported route)", "url": "{{baseUrl}}/beneficiaries/{{otherBeneficiaryId}}", "method": "PUT", "sortNum": 325000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1990-01-15\",\"annualIncome\":26000,\"address\":\"Unauthorized Attempt\",\"state\":\"Test State\",\"district\":\"Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "405" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732045", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Second beneficiary updates own profile", "url": "{{baseUrl}}/beneficiaries/me", "method": "PUT", "sortNum": 326000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{secondBeneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1988-03-20\",\"annualIncome\":31000,\"address\":\"Second Updated Address\",\"state\":\"Test State\",\"district\":\"Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }, { "type": "json-query", "custom": "json.email", "action": "equal", "value": "{{secondBeneficiaryEmail}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732046", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Verify first beneficiary still reads own profile", "url": "{{baseUrl}}/beneficiaries/me", "method": "GET", "sortNum": 327000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }],
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }, { "type": "json-query", "custom": "json.email", "action": "equal", "value": "{{beneficiaryEmail}}" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732033", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Update profile without authentication", "url": "{{baseUrl}}/beneficiaries/me", "method": "PUT", "sortNum": 330000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }], "body": { "type": "json", "raw": "{\"dateOfBirth\":\"1990-01-15\",\"annualIncome\":26000,\"address\":\"Updated Test Address\",\"state\":\"Test State\",\"district\":\"Test District\",\"category\":\"GENERAL\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "401" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732034", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731004",
+      "name": "Update with invalid profile data", "url": "{{baseUrl}}/beneficiaries/me", "method": "PUT", "sortNum": 340000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }, { "name": "Content-Type", "value": "application/json" }],
+      "body": { "type": "json", "raw": "{\"dateOfBirth\":\"not-a-date\",\"annualIncome\":-1,\"address\":\"\",\"state\":\"\",\"district\":\"\",\"category\":\"\"}", "form": [] },
+      "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "400" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732035", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Admin: list all beneficiaries", "url": "{{baseUrl}}/beneficiaries", "method": "GET", "sortNum": 350000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{adminToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732036", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Beneficiary: cannot list all beneficiaries", "url": "{{baseUrl}}/beneficiaries", "method": "GET", "sortNum": 360000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732037", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Officer: cannot list all beneficiaries", "url": "{{baseUrl}}/beneficiaries", "method": "GET", "sortNum": 370000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{officerToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732038", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Admin: read beneficiary by ID", "url": "{{baseUrl}}/beneficiaries/{{beneficiaryProfileId}}", "method": "GET", "sortNum": 380000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{adminToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "200" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732039", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Beneficiary: forbidden from beneficiary-by-ID operation", "url": "{{baseUrl}}/beneficiaries/{{otherBeneficiaryId}}", "method": "GET", "sortNum": 390000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732040", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Officer: forbidden from beneficiary-by-ID operation", "url": "{{baseUrl}}/beneficiaries/{{otherBeneficiaryId}}", "method": "GET", "sortNum": 400000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{officerToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732041", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Beneficiary: unauthorized delete rejected", "url": "{{baseUrl}}/beneficiaries/{{deleteCandidateBeneficiaryId}}", "method": "DELETE", "sortNum": 410000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{beneficiaryToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732042", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Officer: unauthorized delete rejected", "url": "{{baseUrl}}/beneficiaries/{{deleteCandidateBeneficiaryId}}", "method": "DELETE", "sortNum": 420000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{officerToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+    },
+    {
+      "_id": "4d10b8e4-8e15-4f4a-9fd8-4ae82f732043", "colId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f730901", "containerId": "4d10b8e4-8e15-4f4a-9fd8-4ae82f731005",
+      "name": "Admin: DELETE disposable profile only (destructive)", "url": "{{baseUrl}}/beneficiaries/{{deleteCandidateBeneficiaryId}}", "method": "DELETE", "sortNum": 430000, "created": "2026-11-08T12:15:00.000Z", "modified": "2026-11-08T12:15:00.000Z",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{adminToken}}" }], "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "204" }]
+    }
+  ]
+}

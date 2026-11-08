@@ -9,5 +9,8 @@ public record UserResponse(
     String phone,
     String role,
     boolean active,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    String officerLevel,
+    String jurisdictionState,
+    String jurisdictionDistrict
 ) {}

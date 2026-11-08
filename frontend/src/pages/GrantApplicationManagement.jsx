@@ -6,7 +6,8 @@ import {
   getMyApplications,
   submitApplication,
   updateApplication,
-  updateApplicationStatus,
+  uploadApplicationDocument,
+  downloadApplicationDocument,
 } from "../services/grantApplicationService";
 import { getSchemes } from "../services/schemeService";
 import "../styles/GrantApplicationManagement.css";
@@ -17,29 +18,6 @@ const emptyForm = {
   requestedAmount: "",
   eligibilityAnswers: {},
 };
-
-const statuses = [
-  "DRAFT",
-  "SUBMITTED",
-  "UNDER_REVIEW",
-  "APPROVED",
-  "REJECTED",
-];
-
-function statusTone(status) {
-  switch (status) {
-    case "SUBMITTED":
-      return "primary";
-    case "UNDER_REVIEW":
-      return "secondary";
-    case "APPROVED":
-      return "success";
-    case "REJECTED":
-      return "error";
-    default:
-      return "neutral";
-  }
-}
 
 function getEditableEligibilityAnswers(application, scheme) {
   const results =
@@ -68,7 +46,6 @@ function getEditableEligibilityAnswers(application, scheme) {
 function GrantApplicationManagement() {
   const role = localStorage.getItem("role");
   const isBeneficiary = role === "BENEFICIARY";
-  const isAdmin = role === "ADMIN";
   const [applications, setApplications] = useState([]);
   const [schemes, setSchemes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +58,7 @@ function GrantApplicationManagement() {
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
+  const [documents, setDocuments] = useState([]);
 
   const loadApplications = async () => {
     setLoading(true);
@@ -127,6 +105,7 @@ function GrantApplicationManagement() {
   const resetForm = () => {
     setForm({ ...emptyForm, eligibilityAnswers: {} });
     setEditingId(null);
+    setDocuments([]);
   };
 
   const handleSave = async (event) => {
@@ -160,6 +139,10 @@ function GrantApplicationManagement() {
             schemeId: Number(form.schemeId),
           })
         ).data;
+      }
+
+      for (const document of documents) {
+        await uploadApplicationDocument(savedApplication.id, document);
       }
 
       if (shouldSubmit) {
@@ -220,6 +203,7 @@ function GrantApplicationManagement() {
   const handleEdit = (application) => {
     const scheme = schemes.find((item) => item.id === application.schemeId);
     setEditingId(application.id);
+    setDocuments([]);
     setForm({
       schemeId: String(application.schemeId),
       applicationDetails: application.applicationDetails,
@@ -247,26 +231,19 @@ function GrantApplicationManagement() {
     }
   };
 
-  const handleStatusChange = async (application, status) => {
-    setActionError("");
-    setSuccessMessage("");
-
+  const handleDocumentDownload = async (applicationId, document) => {
     try {
-      const response = await updateApplicationStatus(application.id, status);
-      setApplications((current) =>
-        current.map((item) =>
-          item.id === application.id ? response.data : item
-        )
-      );
-      if (selectedApplication?.id === application.id) {
-        setSelectedApplication(response.data);
-      }
-      setSuccessMessage("Application status updated.");
+      const response = await downloadApplicationDocument(applicationId, document.id);
+      const url = URL.createObjectURL(response.data);
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.download = document.fileName;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
-      setActionError(
+      setDetailsError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Unable to update application status."
+          "Unable to download the application document."
       );
     }
   };
@@ -371,6 +348,20 @@ function GrantApplicationManagement() {
               required
             />
           </label>
+          <label>
+            Supporting documents (PDF, PNG, JPEG; up to 10 MB each)
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+              onChange={(event) => setDocuments(Array.from(event.target.files || []))}
+            />
+          </label>
+          {documents.length > 0 && (
+            <p className="grant-applications__help">
+              Selected: {documents.map((document) => document.name).join(", ")}
+            </p>
+          )}
           {selectedScheme && (
             <section
               className="grant-applications__eligibility"
@@ -524,32 +515,9 @@ function GrantApplicationManagement() {
                       : "—"}
                   </td>
                   <td>
-                    {isAdmin ? (
-                      <select
-                        className={`grant-applications__status grant-applications__status--${statusTone(
-                          application.status
-                        )}`}
-                        aria-label={`Status for ${application.schemeName}`}
-                        value={application.status}
-                        onChange={(event) =>
-                          handleStatusChange(application, event.target.value)
-                        }
-                      >
-                        {statuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status.replaceAll("_", " ")}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span
-                        className={`grant-applications__status grant-applications__status--${statusTone(
-                          application.status
-                        )}`}
-                      >
-                        {application.status}
-                      </span>
-                    )}
+                    <span className="grant-applications__status">
+                      {application.status.replaceAll("_", " ")}
+                    </span>
                   </td>
                   <td>
                     <div className="grant-applications__actions">
@@ -560,21 +528,22 @@ function GrantApplicationManagement() {
                       >
                         Details
                       </button>
-                      {isBeneficiary && application.status === "DRAFT" && (
+                      {isBeneficiary &&
+                        ["DRAFT", "NEEDS_CORRECTION"].includes(application.status) && (
                         <>
                           <button
                             className="grant-applications__button grant-applications__button--secondary"
                             type="button"
                             onClick={() => handleEdit(application)}
                           >
-                            Edit
+                          {application.status === "NEEDS_CORRECTION" ? "Edit correction" : "Edit"}
                           </button>
                           <button
                             className="grant-applications__button grant-applications__button--primary"
                             type="button"
                             onClick={() => handleSubmitDraft(application)}
                           >
-                            Submit
+                          {application.status === "NEEDS_CORRECTION" ? "Resubmit" : "Submit"}
                           </button>
                         </>
                       )}
@@ -618,6 +587,14 @@ function GrantApplicationManagement() {
               <div>
                 <dt>Status</dt>
                 <dd>{selectedApplication.status}</dd>
+              </div>
+              <div>
+                <dt>Review stage</dt>
+                <dd>{selectedApplication.workflowStage || "Not submitted"}</dd>
+              </div>
+              <div>
+                <dt>Routing priority</dt>
+                <dd>{selectedApplication.routingPriority || "NORMAL"}</dd>
               </div>
               <div>
                 <dt>Requested amount</dt>
@@ -706,6 +683,52 @@ function GrantApplicationManagement() {
                     )}
                   </ul>
                 </>
+              )}
+            </section>
+          )}
+          {selectedApplication && (
+            <section className="grant-applications__eligibility-result">
+              <h4>Verification progress</h4>
+              <p>
+                Current status: {selectedApplication.status.replaceAll("_", " ")}
+                {selectedApplication.workflowStage
+                  ? ` · ${selectedApplication.workflowStage} review`
+                  : ""}
+              </p>
+              {selectedApplication.documents?.length > 0 && (
+                <>
+                  <h5>Submitted documents</h5>
+                  <ul>
+                    {selectedApplication.documents.map((document) => (
+                      <li key={document.id}>
+                        {document.fileName} · Uploaded by {document.uploadedBy}{" "}
+                        <button
+                          className="grant-applications__button grant-applications__button--secondary"
+                          type="button"
+                          onClick={() =>
+                            handleDocumentDownload(selectedApplication.id, document)
+                          }
+                        >
+                          Download
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              <h5>Review history</h5>
+              {selectedApplication.verificationHistory?.length ? (
+                <ul>
+                  {selectedApplication.verificationHistory.map((item) => (
+                    <li key={item.id}>
+                      {item.stage}: {item.action.replaceAll("_", " ")} by{" "}
+                      {item.actorName} at {new Date(item.createdAt).toLocaleString()}
+                      {item.remarks ? ` — ${item.remarks}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>Your application has not entered verification yet.</p>
               )}
             </section>
           )}

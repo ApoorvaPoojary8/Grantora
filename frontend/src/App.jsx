@@ -14,6 +14,7 @@ import PublicSiteLayout from "./components/PublicSiteLayout";
 import SchemeManagement from "./pages/SchemeManagement";
 import DashboardPlaceholder from "./pages/DashboardPlaceholder";
 import ProtectedRoute from "./components/ProtectedRoute";
+import VerificationWorkflow from "./pages/VerificationWorkflow";
 
 function getAuthenticatedHome() {
   const token = localStorage.getItem("token");
@@ -87,7 +88,7 @@ function App() {
             />
             <Route
               path="/admin/verification"
-              element={<DashboardPlaceholder title="Verification & Approvals" />}
+              element={<VerificationWorkflow />}
               handle={{ pageTitle: "Verification & Approvals" }}
             />
             <Route
@@ -157,22 +158,22 @@ function App() {
             />
             <Route
               path="/officer/assigned"
-              element={<DashboardPlaceholder title="Assigned Applications" />}
+              element={<VerificationWorkflow />}
               handle={{ pageTitle: "Assigned Applications" }}
             />
             <Route
               path="/officer/pending-verification"
-              element={<DashboardPlaceholder title="Pending Verification" />}
+              element={<VerificationWorkflow />}
               handle={{ pageTitle: "Pending Verification" }}
             />
             <Route
               path="/officer/review"
-              element={<GrantApplicationManagement />}
+              element={<VerificationWorkflow />}
               handle={{ pageTitle: "Application Review" }}
             />
             <Route
               path="/officer/history"
-              element={<DashboardPlaceholder title="Verification History" />}
+              element={<VerificationWorkflow historyOnly />}
               handle={{ pageTitle: "Verification History" }}
             />
             <Route

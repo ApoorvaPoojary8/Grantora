@@ -23,6 +23,15 @@ public class User {
     @Column(length = 15)
     private String phone;
 
+    @Column(name = "officer_level", length = 20)
+    private String officerLevel;
+
+    @Column(name = "jurisdiction_state", length = 100)
+    private String jurisdictionState;
+
+    @Column(name = "jurisdiction_district", length = 100)
+    private String jurisdictionDistrict;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
@@ -68,6 +77,30 @@ public class User {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getOfficerLevel() {
+        return officerLevel;
+    }
+
+    public void setOfficerLevel(String officerLevel) {
+        this.officerLevel = officerLevel;
+    }
+
+    public String getJurisdictionState() {
+        return jurisdictionState;
+    }
+
+    public void setJurisdictionState(String jurisdictionState) {
+        this.jurisdictionState = jurisdictionState;
+    }
+
+    public String getJurisdictionDistrict() {
+        return jurisdictionDistrict;
+    }
+
+    public void setJurisdictionDistrict(String jurisdictionDistrict) {
+        this.jurisdictionDistrict = jurisdictionDistrict;
     }
 
     public Role getRole() {
