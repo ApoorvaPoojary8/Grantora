@@ -1,9 +1,14 @@
+
 package com.grantora.controller;
 
-import com.grantora.entity.Beneficiary;
+import com.grantora.dto.BeneficiaryRequest;
+import com.grantora.dto.BeneficiaryResponse;
 import com.grantora.service.BeneficiaryService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,42 +23,82 @@ public class BeneficiaryController {
         this.beneficiaryService = beneficiaryService;
     }
 
+    private boolean isAdmin(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
+    }
+
+    private void requireAdmin(Authentication authentication) {
+        if (!isAdmin(authentication)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Admin access required");
+        }
+    }
+
+    // Admin: view all beneficiaries
     @GetMapping
-    public ResponseEntity<List<Beneficiary>> getAllBeneficiaries() {
+    public ResponseEntity<List<BeneficiaryResponse>> getAllBeneficiaries(
+            Authentication authentication) {
+
+        requireAdmin(authentication);
+
         return ResponseEntity.ok(
                 beneficiaryService.getAllBeneficiaries());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Beneficiary> getBeneficiaryById(
-            @PathVariable Long id) {
+    // Beneficiary: view own profile
+    @GetMapping("/me")
+    public ResponseEntity<BeneficiaryResponse> getMyProfile(
+            Authentication authentication) {
+
         return ResponseEntity.ok(
-                beneficiaryService.getBeneficiaryById(id));
+                beneficiaryService.getMyProfile(authentication.getName()));
     }
 
+    // Beneficiary: create own profile
     @PostMapping
-    public ResponseEntity<Beneficiary> createBeneficiary(
-            @RequestParam Long userId,
-            @RequestBody Beneficiary beneficiary) {
+    public ResponseEntity<BeneficiaryResponse> createMyProfile(
+            Authentication authentication,
+            @RequestBody BeneficiaryRequest request) {
 
-        Beneficiary created =
-                beneficiaryService.createBeneficiary(beneficiary, userId);
+        BeneficiaryResponse created =
+                beneficiaryService.createMyProfile(
+                        authentication.getName(), request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Beneficiary> updateBeneficiary(
-            @PathVariable Long id,
-            @RequestBody Beneficiary beneficiary) {
+    // Beneficiary: update own profile
+    @PutMapping("/me")
+    public ResponseEntity<BeneficiaryResponse> updateMyProfile(
+            Authentication authentication,
+            @RequestBody BeneficiaryRequest request) {
 
         return ResponseEntity.ok(
-                beneficiaryService.updateBeneficiary(id, beneficiary));
+                beneficiaryService.updateMyProfile(
+                        authentication.getName(), request));
     }
 
+    // Admin: view beneficiary by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<BeneficiaryResponse> getBeneficiaryById(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        requireAdmin(authentication);
+
+        return ResponseEntity.ok(
+                beneficiaryService.getBeneficiaryById(id));
+    }
+
+    // Admin: delete beneficiary by ID
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBeneficiary(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        requireAdmin(authentication);
 
         beneficiaryService.deleteBeneficiary(id);
 
