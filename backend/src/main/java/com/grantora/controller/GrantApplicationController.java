@@ -7,6 +7,7 @@ import com.grantora.dto.GrantApplicationUpdateRequest;
 import com.grantora.dto.ApplicationDocumentResponse;
 import com.grantora.dto.VerificationDecisionRequest;
 import com.grantora.entity.ApplicationDocument;
+import com.grantora.entity.GrantApplicationStatus;
 import com.grantora.service.GrantApplicationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ContentDisposition;
@@ -17,6 +18,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -35,6 +40,19 @@ public class GrantApplicationController {
     public List<GrantApplicationResponse> getApplications(Authentication authentication) {
         return applicationService.getAllApplications(
                 authentication.getName(), hasRole(authentication, "ROLE_ADMIN"));
+    }
+
+    @GetMapping("/admin")
+    public Page<GrantApplicationResponse> getAdminApplications(
+            Authentication authentication,
+            @RequestParam(required = false) GrantApplicationStatus status,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+        if (!hasRole(authentication, "ROLE_ADMIN")) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Admin access required.");
+        }
+        return applicationService.getAdminApplications(status, pageable);
     }
 
     @GetMapping("/me")

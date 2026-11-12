@@ -150,6 +150,7 @@ public class EligibilityScoringService {
                 failedCriteria,
                 missingInformation,
                 explanation,
+                scheme.getEligibilityThreshold(),
                 LocalDateTime.now());
     }
 

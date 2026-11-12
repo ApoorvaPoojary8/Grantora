@@ -61,6 +61,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
 
                 .requestMatchers("/api/applications/me").hasRole("BENEFICIARY")
+                .requestMatchers("/api/applications/admin").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/applications/*/submit")
                     .hasRole("BENEFICIARY")
                 .requestMatchers(HttpMethod.POST, "/api/applications/*/withdraw")

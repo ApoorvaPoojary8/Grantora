@@ -16,6 +16,7 @@ public record EligibilityEvaluationResult(
         List<String> failedCriteria,
         List<String> missingInformation,
         String explanation,
+        BigDecimal eligibilityThreshold,
         LocalDateTime evaluatedAt) {
 
     public record MandatoryCriterionResult(

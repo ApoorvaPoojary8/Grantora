@@ -33,6 +33,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -95,6 +97,15 @@ public class GrantApplicationService {
                     .toList();
         }
         return applications.stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<GrantApplicationResponse> getAdminApplications(
+            GrantApplicationStatus status, Pageable pageable) {
+        Page<GrantApplication> applications = status == null
+                ? applicationRepository.findAllByOrderByIdDesc(pageable)
+                : applicationRepository.findAllByStatusOrderByIdDesc(status, pageable);
+        return applications.map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -558,7 +569,10 @@ public class GrantApplicationService {
                         application.getBeneficiary().getAddress(),
                         application.getBeneficiary().getState(),
                         application.getBeneficiary().getDistrict(),
-                        application.getBeneficiary().getCategory()));
+                        application.getBeneficiary().getCategory()),
+                application.getEligibilityEvaluation() == null
+                        ? null
+                        : application.getEligibilityEvaluation().eligibilityThreshold());
     }
 
     private VerificationHistoryResponse toHistoryResponse(ApplicationVerification item) {

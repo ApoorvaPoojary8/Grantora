@@ -43,6 +43,7 @@ class EligibilityScoringServiceTest {
         assertEquals(new BigDecimal("80.00"), result.scoreOutOf100());
         assertEquals(new BigDecimal("80"), result.pointsEarned());
         assertEquals(new BigDecimal("100"), result.maximumAvailablePoints());
+        assertEquals(new BigDecimal("80"), result.eligibilityThreshold());
         assertEquals(42L, result.applicationId());
         assertEquals(5, result.customQuestionResults().size());
     }

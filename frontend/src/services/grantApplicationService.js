@@ -4,6 +4,9 @@ const API_URL = "/applications";
 
 export const getApplications = () => api.get(API_URL);
 
+export const getAdminApplications = (params) =>
+  api.get(`${API_URL}/admin`, { params });
+
 export const getMyApplications = () => api.get(`${API_URL}/me`);
 
 export const getApplicationById = (id) => api.get(`${API_URL}/${id}`);

@@ -291,6 +291,72 @@ select.grant-applications__status {
   background: var(--color-surface-low);
 }
 
+.grant-applications__filters,
+.grant-applications__pagination,
+.grant-applications__document-preview-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.grant-applications__filters {
+  margin: 0 0 16px;
+  color: var(--color-on-surface-variant);
+  font-size: 0.9rem;
+}
+
+.grant-applications__filters select {
+  min-width: 190px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 6px;
+  background: var(--color-surface-lowest);
+  color: var(--color-on-surface);
+  font: inherit;
+}
+
+.grant-applications__filters span {
+  margin-left: auto;
+}
+
+.grant-applications__pagination {
+  justify-content: center;
+  margin-top: 16px;
+  color: var(--color-on-surface-variant);
+}
+
+.grant-applications__document-preview {
+  position: fixed;
+  z-index: 1000;
+  inset: 5vh 5vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 10px;
+  background: var(--color-surface-lowest);
+  box-shadow: 0 8px 30px var(--color-shadow);
+}
+
+.grant-applications__document-preview-heading {
+  justify-content: space-between;
+}
+
+.grant-applications__document-preview-heading h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.grant-applications__document-preview iframe,
+.grant-applications__document-preview img {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  border: 0;
+  object-fit: contain;
+}
+
 .grant-applications__details-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -342,5 +408,18 @@ select.grant-applications__status {
   .grant-applications__notice {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .grant-applications__filters {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .grant-applications__filters span {
+    margin-left: 0;
+  }
+
+  .grant-applications__document-preview {
+    inset: 2vh 2vw;
   }
 }

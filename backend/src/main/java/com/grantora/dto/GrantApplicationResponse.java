@@ -26,5 +26,6 @@ public record GrantApplicationResponse(
         List<GrantApplicationStatusHistoryResponse> statusHistory,
         boolean withdrawalAllowed,
         List<ApplicationDocumentResponse> documents,
-        BeneficiaryVerificationDetails beneficiaryDetails
+        BeneficiaryVerificationDetails beneficiaryDetails,
+        BigDecimal eligibilityThreshold
 ) {}

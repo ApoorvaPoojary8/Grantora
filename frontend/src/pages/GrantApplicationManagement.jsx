@@ -3,6 +3,7 @@ import {
   createApplication,
   getApplicationById,
   getApplications,
+  getAdminApplications,
   getMyApplications,
   submitApplication,
   withdrawApplication,
@@ -13,6 +14,21 @@ import {
 } from "../services/grantApplicationService";
 import { getSchemes } from "../services/schemeService";
 import "../styles/GrantApplicationManagement.css";
+
+const APPLICATION_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "UNDER_VERIFICATION",
+  "FIELD_VERIFICATION",
+  "DISTRICT_REVIEW",
+  "STATE_REVIEW",
+  "NEEDS_CORRECTION",
+  "UNDER_REVIEW",
+  "APPROVED",
+  "REJECTED",
+  "WITHDRAWN",
+];
+const ADMIN_PAGE_SIZE = 20;
 
 const emptyForm = {
   schemeId: "",
@@ -48,7 +64,14 @@ function getEditableEligibilityAnswers(application, scheme) {
 function GrantApplicationManagement() {
   const role = localStorage.getItem("role");
   const isBeneficiary = role === "BENEFICIARY";
+  const isAdmin = role === "ADMIN";
   const [applications, setApplications] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [page, setPage] = useState(0);
+  const [pageInfo, setPageInfo] = useState({
+    totalPages: 0,
+    totalElements: 0,
+  });
   const [schemes, setSchemes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -59,9 +82,11 @@ function GrantApplicationManagement() {
   const [actionError, setActionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [selectedApplicationId, setSelectedApplicationId] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
   const [documents, setDocuments] = useState([]);
+  const [documentPreview, setDocumentPreview] = useState(null);
 
   const loadApplications = async () => {
     setLoading(true);
@@ -69,10 +94,26 @@ function GrantApplicationManagement() {
 
     try {
       const [applicationsResponse, schemesResponse] = await Promise.all([
-        isBeneficiary ? getMyApplications() : getApplications(),
+        isBeneficiary
+          ? getMyApplications()
+          : isAdmin
+            ? getAdminApplications({
+                page,
+                size: ADMIN_PAGE_SIZE,
+                ...(statusFilter ? { status: statusFilter } : {}),
+              })
+            : getApplications(),
         isBeneficiary ? getSchemes() : Promise.resolve({ data: [] }),
       ]);
-      setApplications(applicationsResponse.data);
+      if (isAdmin) {
+        setApplications(applicationsResponse.data.content);
+        setPageInfo({
+          totalPages: applicationsResponse.data.totalPages,
+          totalElements: applicationsResponse.data.totalElements,
+        });
+      } else {
+        setApplications(applicationsResponse.data);
+      }
       setSchemes(schemesResponse.data);
     } catch (err) {
       setError(
@@ -87,7 +128,17 @@ function GrantApplicationManagement() {
 
   useEffect(() => {
     loadApplications();
-  }, []);
+    const refreshOnFocus = () => loadApplications();
+    window.addEventListener("focus", refreshOnFocus);
+    return () => window.removeEventListener("focus", refreshOnFocus);
+  }, [isAdmin, isBeneficiary, page, statusFilter]);
+
+  useEffect(
+    () => () => {
+      if (documentPreview?.url) URL.revokeObjectURL(documentPreview.url);
+    },
+    [documentPreview?.url]
+  );
 
   const availableSchemes = schemes.filter(
     (scheme) => scheme.status === "ACTIVE"
@@ -204,6 +255,7 @@ function GrantApplicationManagement() {
   };
 
   const handleViewDetails = async (id) => {
+    setSelectedApplicationId(id);
     setSelectedApplication(null);
     setDetailsError("");
     setDetailsLoading(true);
@@ -330,6 +382,36 @@ function GrantApplicationManagement() {
     }
   };
 
+  const handleDocumentPreview = async (applicationId, document) => {
+    setDetailsError("");
+    try {
+      const response = await downloadApplicationDocument(applicationId, document.id);
+      const url = URL.createObjectURL(response.data);
+      setDocumentPreview({
+        url,
+        contentType: document.contentType,
+        fileName: document.fileName,
+      });
+    } catch (err) {
+      setDetailsError(
+        err.response?.data?.message ||
+          "Unable to open the application document."
+      );
+    }
+  };
+
+  const closeDocumentPreview = () => {
+    if (documentPreview?.url) URL.revokeObjectURL(documentPreview.url);
+    setDocumentPreview(null);
+  };
+
+  const handleRefresh = async () => {
+    await loadApplications();
+    if (selectedApplication?.id) {
+      await handleViewDetails(selectedApplication.id);
+    }
+  };
+
   return (
     <section
       className="grant-applications"
@@ -347,7 +429,7 @@ function GrantApplicationManagement() {
         <button
           className="grant-applications__button grant-applications__button--secondary"
           type="button"
-          onClick={loadApplications}
+          onClick={handleRefresh}
           disabled={loading}
         >
           {loading ? "Loading..." : "Refresh"}
@@ -385,6 +467,31 @@ function GrantApplicationManagement() {
         >
           {successMessage}
         </p>
+      )}
+
+      {isAdmin && (
+        <div className="grant-applications__filters">
+          <label htmlFor="application-status-filter">Filter by status</label>
+          <select
+            id="application-status-filter"
+            value={statusFilter}
+            onChange={(event) => {
+              setPage(0);
+              setStatusFilter(event.target.value);
+            }}
+          >
+            <option value="">All statuses</option>
+            {APPLICATION_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status.replaceAll("_", " ")}
+              </option>
+            ))}
+          </select>
+          <span>
+            {pageInfo.totalElements} application
+            {pageInfo.totalElements === 1 ? "" : "s"}
+          </span>
+        </div>
       )}
 
       {isBeneficiary && (
@@ -556,7 +663,7 @@ function GrantApplicationManagement() {
             <tr>
               {!isBeneficiary && <th scope="col">Beneficiary</th>}
               <th scope="col">Scheme</th>
-              {isBeneficiary && <th scope="col">Eligibility</th>}
+              {(isBeneficiary || isAdmin) && <th scope="col">Eligibility</th>}
               <th scope="col">Requested amount</th>
               <th scope="col">Submitted</th>
               <th scope="col">Status</th>
@@ -568,7 +675,7 @@ function GrantApplicationManagement() {
               <tr>
                 <td
                   className="grant-applications__table-message"
-                  colSpan="6"
+                  colSpan={isAdmin ? 7 : 6}
                 >
                   Loading applications...
                 </td>
@@ -577,7 +684,7 @@ function GrantApplicationManagement() {
               <tr>
                 <td
                   className="grant-applications__table-message"
-                  colSpan="6"
+                  colSpan={isAdmin ? 7 : 6}
                 >
                   Applications could not be loaded.
                 </td>
@@ -586,9 +693,11 @@ function GrantApplicationManagement() {
               <tr>
                 <td
                   className="grant-applications__table-message"
-                  colSpan="6"
+                  colSpan={isAdmin ? 7 : 6}
                 >
-                  No grant applications found.
+                  {statusFilter
+                    ? `No applications found with status ${statusFilter.replaceAll("_", " ")}.`
+                    : "No grant applications found."}
                 </td>
               </tr>
             ) : (
@@ -598,10 +707,10 @@ function GrantApplicationManagement() {
                     <td>{application.beneficiaryName || "—"}</td>
                   )}
                   <td>{application.schemeName || "—"}</td>
-                  {isBeneficiary && (
+                  {(isBeneficiary || isAdmin) && (
                     <td>
                       {application.eligibilityEvaluation
-                        ? `${application.eligibilityEvaluation.eligibilityStatus} · ${application.eligibilityEvaluation.scoreOutOf100}%`
+                        ? `${application.eligibilityEvaluation.eligibilityStatus} · ${application.eligibilityEvaluation.scoreOutOf100 ?? "—"}%`
                         : "Not evaluated"}
                     </td>
                   )}
@@ -673,6 +782,33 @@ function GrantApplicationManagement() {
           </tbody>
         </table>
       </div>
+      {isAdmin && pageInfo.totalPages > 1 && (
+        <nav className="grant-applications__pagination" aria-label="Application pages">
+          <button
+            className="grant-applications__button grant-applications__button--secondary"
+            type="button"
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+            disabled={page === 0 || loading}
+          >
+            Previous
+          </button>
+          <span>
+            Page {page + 1} of {pageInfo.totalPages}
+          </span>
+          <button
+            className="grant-applications__button grant-applications__button--secondary"
+            type="button"
+            onClick={() =>
+              setPage((current) =>
+                Math.min(pageInfo.totalPages - 1, current + 1)
+              )
+            }
+            disabled={page + 1 >= pageInfo.totalPages || loading}
+          >
+            Next
+          </button>
+        </nav>
+      )}
 
       {(detailsLoading || detailsError || selectedApplication) && (
         <section
@@ -683,12 +819,22 @@ function GrantApplicationManagement() {
           <h3 id="application-details-heading">Application details</h3>
           {detailsLoading && <p>Loading application details...</p>}
           {detailsError && (
-            <p
+            <div
               className="grant-applications__notice grant-applications__notice--error"
               role="alert"
             >
-              {detailsError}
-            </p>
+              <span>{detailsError}</span>
+              {selectedApplicationId != null && (
+                <button
+                  className="grant-applications__button grant-applications__button--secondary"
+                  type="button"
+                  onClick={() => handleViewDetails(selectedApplicationId)}
+                  disabled={detailsLoading}
+                >
+                  Try again
+                </button>
+              )}
+            </div>
           )}
           {selectedApplication && (
             <dl className="grant-applications__details-grid">
@@ -702,6 +848,46 @@ function GrantApplicationManagement() {
                 <dt>Scheme</dt>
                 <dd>{selectedApplication.schemeName || "—"}</dd>
               </div>
+              {isAdmin && (
+                <>
+                  <div>
+                    <dt>Beneficiary email</dt>
+                    <dd>{selectedApplication.beneficiaryDetails?.email || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Beneficiary phone</dt>
+                    <dd>{selectedApplication.beneficiaryDetails?.phone || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Date of birth</dt>
+                    <dd>{selectedApplication.beneficiaryDetails?.dateOfBirth || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Annual income</dt>
+                    <dd>
+                      {selectedApplication.beneficiaryDetails?.annualIncome == null
+                        ? "—"
+                        : `₹${selectedApplication.beneficiaryDetails.annualIncome}`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Category</dt>
+                    <dd>{selectedApplication.beneficiaryDetails?.category || "—"}</dd>
+                  </div>
+                  <div className="grant-applications__detail-wide">
+                    <dt>Address</dt>
+                    <dd>
+                      {[
+                        selectedApplication.beneficiaryDetails?.address,
+                        selectedApplication.beneficiaryDetails?.district,
+                        selectedApplication.beneficiaryDetails?.state,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "—"}
+                    </dd>
+                  </div>
+                </>
+              )}
               <div>
                 <dt>Status</dt>
                 <dd>{selectedApplication.status}</dd>
@@ -732,18 +918,18 @@ function GrantApplicationManagement() {
               </div>
             </dl>
           )}
-          {selectedApplication?.eligibilityEvaluation && (
+          {selectedApplication?.eligibilityEvaluation ? (
             <section className="grant-applications__eligibility-result">
               <h4>Eligibility evaluation</h4>
               <p>
-                {selectedApplication.eligibilityEvaluation.eligibilityStatus} —{" "}
-                {selectedApplication.eligibilityEvaluation.scoreOutOf100}% (
+                Decision: {selectedApplication.eligibilityEvaluation.eligibilityStatus || "Not recorded"} · Score:{" "}
+                {selectedApplication.eligibilityEvaluation.scoreOutOf100 ?? "—"}% (
                 {selectedApplication.eligibilityEvaluation.pointsEarned} of{" "}
                 {
                   selectedApplication.eligibilityEvaluation
                     .maximumAvailablePoints
                 }{" "}
-                points)
+                points) · Threshold: {selectedApplication.eligibilityThreshold ?? "—"}%
               </p>
               <p>
                 {selectedApplication.eligibilityEvaluation.explanation}
@@ -756,7 +942,7 @@ function GrantApplicationManagement() {
               </p>
               <h5>Mandatory criteria</h5>
               <ul>
-                {selectedApplication.eligibilityEvaluation.mandatoryCriteriaResults.map(
+                {(selectedApplication.eligibilityEvaluation.mandatoryCriteriaResults || []).map(
                   (criterion) => (
                     <li key={criterion.criterion}>
                       {criterion.criterion}: {criterion.status} —{" "}
@@ -767,7 +953,7 @@ function GrantApplicationManagement() {
               </ul>
               <h5>Custom question results</h5>
               <ul>
-                {selectedApplication.eligibilityEvaluation.customQuestionResults.map(
+                {(selectedApplication.eligibilityEvaluation.customQuestionResults || []).map(
                   (result) => (
                     <li key={result.questionId}>
                       {result.questionText}: {result.answer || "Not answered"} —{" "}
@@ -776,12 +962,12 @@ function GrantApplicationManagement() {
                   )
                 )}
               </ul>
-              {selectedApplication.eligibilityEvaluation.failedCriteria.length >
+              {(selectedApplication.eligibilityEvaluation.failedCriteria || []).length >
                 0 && (
                 <>
                   <h5>Failed criteria</h5>
                   <ul>
-                    {selectedApplication.eligibilityEvaluation.failedCriteria.map(
+                    {(selectedApplication.eligibilityEvaluation.failedCriteria || []).map(
                       (criterion) => (
                         <li key={criterion}>{criterion}</li>
                       )
@@ -789,12 +975,12 @@ function GrantApplicationManagement() {
                   </ul>
                 </>
               )}
-              {selectedApplication.eligibilityEvaluation.missingInformation
+              {(selectedApplication.eligibilityEvaluation.missingInformation || [])
                 .length > 0 && (
                 <>
                   <h5>Missing information</h5>
                   <ul>
-                    {selectedApplication.eligibilityEvaluation.missingInformation.map(
+                    {(selectedApplication.eligibilityEvaluation.missingInformation || []).map(
                       (information) => (
                         <li key={information}>{information}</li>
                       )
@@ -803,7 +989,12 @@ function GrantApplicationManagement() {
                 </>
               )}
             </section>
-          )}
+          ) : isAdmin ? (
+            <section className="grant-applications__eligibility-result">
+              <h4>Eligibility evaluation</h4>
+              <p>No persisted eligibility evaluation is available for this application.</p>
+            </section>
+          ) : null}
           {selectedApplication && (
             <section className="grant-applications__eligibility-result">
               <h4>Verification progress</h4>
@@ -824,6 +1015,15 @@ function GrantApplicationManagement() {
                           className="grant-applications__button grant-applications__button--secondary"
                           type="button"
                           onClick={() =>
+                            handleDocumentPreview(selectedApplication.id, document)
+                          }
+                        >
+                          View
+                        </button>
+                        <button
+                          className="grant-applications__button grant-applications__button--secondary"
+                          type="button"
+                          onClick={() =>
                             handleDocumentDownload(selectedApplication.id, document)
                           }
                         >
@@ -833,6 +1033,33 @@ function GrantApplicationManagement() {
                     ))}
                   </ul>
                 </>
+              )}
+              {documentPreview && (
+                <section
+                  className="grant-applications__document-preview"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="document-preview-heading"
+                >
+                  <div className="grant-applications__document-preview-heading">
+                    <h3 id="document-preview-heading">{documentPreview.fileName}</h3>
+                    <button
+                      className="grant-applications__button grant-applications__button--secondary"
+                      type="button"
+                      onClick={closeDocumentPreview}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {documentPreview.contentType?.startsWith("image/") ? (
+                    <img src={documentPreview.url} alt={documentPreview.fileName} />
+                  ) : (
+                    <iframe
+                      src={documentPreview.url}
+                      title={documentPreview.fileName}
+                    />
+                  )}
+                </section>
               )}
               <h5>Review history</h5>
               {selectedApplication.verificationHistory?.length ? (
