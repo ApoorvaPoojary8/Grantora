@@ -9,11 +9,13 @@ import com.grantora.dto.ApplicationDocumentResponse;
 import com.grantora.dto.BeneficiaryVerificationDetails;
 import com.grantora.dto.VerificationDecisionRequest;
 import com.grantora.dto.VerificationHistoryResponse;
+import com.grantora.dto.GrantApplicationStatusHistoryResponse;
 import com.grantora.entity.ApplicationDocument;
 import com.grantora.entity.ApplicationVerification;
 import com.grantora.entity.Beneficiary;
 import com.grantora.entity.GrantApplication;
 import com.grantora.entity.GrantApplicationStatus;
+import com.grantora.entity.GrantApplicationStatusHistory;
 import com.grantora.entity.Role;
 import com.grantora.entity.Scheme;
 import com.grantora.entity.SchemeEligibilityQuestion;
@@ -22,6 +24,7 @@ import com.grantora.repository.ApplicationDocumentRepository;
 import com.grantora.repository.ApplicationVerificationRepository;
 import com.grantora.repository.BeneficiaryRepository;
 import com.grantora.repository.GrantApplicationRepository;
+import com.grantora.repository.GrantApplicationStatusHistoryRepository;
 import com.grantora.repository.SchemeRepository;
 import com.grantora.repository.UserRepository;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,6 +45,7 @@ import java.util.List;
 public class GrantApplicationService {
 
     private final GrantApplicationRepository applicationRepository;
+    private final GrantApplicationStatusHistoryRepository statusHistoryRepository;
     private final BeneficiaryRepository beneficiaryRepository;
     private final SchemeRepository schemeRepository;
     private final EligibilityScoringService eligibilityScoringService;
@@ -55,6 +59,7 @@ public class GrantApplicationService {
 
     public GrantApplicationService(
             GrantApplicationRepository applicationRepository,
+            GrantApplicationStatusHistoryRepository statusHistoryRepository,
             BeneficiaryRepository beneficiaryRepository,
             SchemeRepository schemeRepository,
             EligibilityScoringService eligibilityScoringService,
@@ -63,6 +68,7 @@ public class GrantApplicationService {
             ApplicationDocumentRepository documentRepository,
             UserRepository userRepository) {
         this.applicationRepository = applicationRepository;
+        this.statusHistoryRepository = statusHistoryRepository;
         this.beneficiaryRepository = beneficiaryRepository;
         this.schemeRepository = schemeRepository;
         this.eligibilityScoringService = eligibilityScoringService;
@@ -158,14 +164,17 @@ public class GrantApplicationService {
         GrantApplication saved = persistApplication(application);
         saved.setEligibilityEvaluation(eligibilityScoringService.evaluate(
                 saved.getId(), scheme, beneficiary, saved.getEligibilityAnswers()));
-        return saveApplication(saved);
+        saved = persistApplication(saved);
+        recordStatusHistory(saved.getId(), null, saved.getStatus(), "CREATED",
+                getUser(email), "Application draft created.");
+        return toResponse(saved);
     }
 
     public GrantApplicationResponse updateDraft(
             Long id,
             String email,
             GrantApplicationUpdateRequest request) {
-        GrantApplication application = findApplication(id);
+        GrantApplication application = findApplicationForUpdate(id);
         requireOwner(application, email);
         requireEditable(application);
 
@@ -181,11 +190,14 @@ public class GrantApplicationService {
                 application.getBeneficiary(),
                 application.getEligibilityAnswers()));
 
-        return saveApplication(application);
+        GrantApplication saved = persistApplication(application);
+        recordStatusHistory(saved.getId(), saved.getStatus(), saved.getStatus(),
+                "DRAFT_UPDATED", getUser(email), "Application details updated.");
+        return toResponse(saved);
     }
 
     public GrantApplicationResponse submitDraft(Long id, String email) {
-        GrantApplication application = findApplication(id);
+        GrantApplication application = findApplicationForUpdate(id);
         requireOwner(application, email);
         if (application.getStatus() != GrantApplicationStatus.DRAFT
                 && application.getStatus() != GrantApplicationStatus.NEEDS_CORRECTION) {
@@ -194,6 +206,8 @@ public class GrantApplicationService {
                     "Only drafts or returned applications can be submitted.");
         }
 
+        validateForSubmission(application);
+        GrantApplicationStatus previousStatus = application.getStatus();
         application.setEligibilityEvaluation(eligibilityScoringService.evaluate(
                 application.getId(),
                 application.getScheme(),
@@ -202,7 +216,44 @@ public class GrantApplicationService {
         if (application.getSubmittedAt() == null) {
             application.setSubmittedAt(LocalDateTime.now());
         }
-        return toResponse(verificationWorkflowService.submit(application, email));
+        GrantApplication submitted = verificationWorkflowService.submit(application, email);
+        String action = previousStatus == GrantApplicationStatus.NEEDS_CORRECTION
+                ? "RESUBMITTED" : "SUBMITTED";
+        recordStatusHistory(submitted.getId(), previousStatus, submitted.getStatus(),
+                action, getUser(email), action.equals("RESUBMITTED")
+                        ? "Beneficiary resubmitted the corrected application."
+                        : "Beneficiary submitted the application.");
+        return toResponse(submitted);
+    }
+
+    public void deleteDraft(Long id, String email) {
+        GrantApplication application = findApplicationForUpdate(id);
+        requireOwner(application, email);
+        if (application.getStatus() != GrantApplicationStatus.DRAFT) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "Only draft applications can be deleted.");
+        }
+        recordStatusHistory(application.getId(), application.getStatus(), application.getStatus(),
+                "DRAFT_DELETED", getUser(email), "Beneficiary deleted the draft.");
+        documentRepository.deleteAllByApplication_Id(id);
+        applicationRepository.delete(application);
+    }
+
+    public GrantApplicationResponse withdraw(Long id, String email) {
+        GrantApplication application = findApplicationForUpdate(id);
+        requireOwner(application, email);
+        if (!isWithdrawalAllowed(application)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This application can no longer be withdrawn because verification has started.");
+        }
+        GrantApplicationStatus previousStatus = application.getStatus();
+        application.setStatus(GrantApplicationStatus.WITHDRAWN);
+        application.setAssignedOfficer(null);
+        GrantApplication withdrawn = persistApplication(application);
+        recordStatusHistory(withdrawn.getId(), previousStatus, withdrawn.getStatus(),
+                "WITHDRAWN", getUser(email), "Beneficiary withdrew the application.");
+        return toResponse(withdrawn);
     }
 
     public GrantApplicationResponse updateStatus(
@@ -218,7 +269,14 @@ public class GrantApplicationService {
             String email,
             boolean admin,
             VerificationDecisionRequest request) {
-        return toResponse(verificationWorkflowService.decide(id, email, admin, request));
+        GrantApplication application = findApplicationForUpdate(id);
+        GrantApplicationStatus previousStatus = application.getStatus();
+        GrantApplication decided = verificationWorkflowService.decide(id, email, admin, request);
+        if (previousStatus != decided.getStatus()) {
+            recordStatusHistory(id, previousStatus, decided.getStatus(),
+                    decided.getStatus().name(), getUser(email), request.remarks());
+        }
+        return toResponse(decided);
     }
 
     public GrantApplicationResponse escalate(Long id, String email, boolean admin) {
@@ -241,7 +299,7 @@ public class GrantApplicationService {
 
     public ApplicationDocumentResponse addDocument(
             Long applicationId, String email, MultipartFile file) {
-        GrantApplication application = findApplication(applicationId);
+        GrantApplication application = findApplicationForUpdate(applicationId);
         requireOwner(application, email);
         if (application.getStatus() != GrantApplicationStatus.DRAFT
                 && application.getStatus() != GrantApplicationStatus.NEEDS_CORRECTION) {
@@ -300,10 +358,6 @@ public class GrantApplicationService {
         }
     }
 
-    private GrantApplicationResponse saveApplication(GrantApplication application) {
-        return toResponse(persistApplication(application));
-    }
-
     private GrantApplication persistApplication(GrantApplication application) {
         try {
             return applicationRepository.saveAndFlush(application);
@@ -327,6 +381,12 @@ public class GrantApplicationService {
                         HttpStatus.NOT_FOUND, "Application not found"));
     }
 
+    private GrantApplication findApplicationForUpdate(Long id) {
+        return applicationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Application not found"));
+    }
+
     private void requireOwner(GrantApplication application, String email) {
         if (!application.getBeneficiary().getUser().getEmail().equals(email)) {
             throw new ResponseStatusException(
@@ -341,6 +401,70 @@ public class GrantApplicationService {
                     HttpStatus.CONFLICT,
                     "Only a draft or returned application can be changed.");
         }
+    }
+
+    private void validateForSubmission(GrantApplication application) {
+        if (application.getApplicationDetails() == null
+                || application.getApplicationDetails().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Application details are required before submission.");
+        }
+        if (application.getRequestedAmount() == null
+                || application.getRequestedAmount().signum() <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Requested amount must be greater than zero.");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(application.getScheme().getStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "This scheme is no longer accepting applications.");
+        }
+        validateAnswers(application.getScheme(), application.getEligibilityAnswers());
+        java.util.Set<Long> answeredQuestionIds = application.getEligibilityAnswers().stream()
+                .map(EligibilityAnswer::questionId)
+                .collect(java.util.stream.Collectors.toSet());
+        boolean hasMissingRequiredAnswer = application.getScheme().getEligibilityQuestions()
+                .stream()
+                .anyMatch(question -> question.isRequired()
+                        && !answeredQuestionIds.contains(question.getId()));
+        if (hasMissingRequiredAnswer) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Answer all required eligibility questions before submitting.");
+        }
+    }
+
+    private boolean isWithdrawalAllowed(GrantApplication application) {
+        if (application.getStatus() != GrantApplicationStatus.SUBMITTED) return false;
+        List<ApplicationVerification> history =
+                verificationRepository.findByApplication_IdOrderByCreatedAtAsc(application.getId());
+        int lastSubmissionIndex = -1;
+        for (int index = 0; index < history.size(); index++) {
+            String action = history.get(index).getAction();
+            if ("SUBMITTED".equals(action) || "RESUBMITTED".equals(action)) {
+                lastSubmissionIndex = index;
+            }
+        }
+        return history.subList(lastSubmissionIndex + 1, history.size()).stream()
+                .noneMatch(item -> List.of(
+                                "VERIFIED", "APPROVED", "REJECTED", "NEEDS_CORRECTION", "ESCALATED")
+                        .contains(item.getAction()));
+    }
+
+    private void recordStatusHistory(
+            Long applicationId,
+            GrantApplicationStatus fromStatus,
+            GrantApplicationStatus toStatus,
+            String action,
+            User actor,
+            String remarks) {
+        GrantApplicationStatusHistory entry = new GrantApplicationStatusHistory();
+        entry.setApplicationId(applicationId);
+        entry.setFromStatus(fromStatus);
+        entry.setToStatus(toStatus);
+        entry.setAction(action);
+        entry.setActor(actor);
+        entry.setRemarks(remarks == null || remarks.isBlank() ? null : remarks.trim());
+        statusHistoryRepository.save(entry);
     }
 
     private User getUser(String email) {
@@ -389,6 +513,19 @@ public class GrantApplicationService {
                         .toList();
         List<ApplicationDocumentResponse> documents =
                 documentRepository.findMetadataByApplicationId(application.getId());
+        List<GrantApplicationStatusHistoryResponse> statusHistory =
+                statusHistoryRepository
+                        .findByApplicationIdOrderByCreatedAtAscIdAsc(application.getId())
+                        .stream()
+                        .map(item -> new GrantApplicationStatusHistoryResponse(
+                                item.getId(),
+                                item.getFromStatus() == null ? null : item.getFromStatus().name(),
+                                item.getToStatus() == null ? null : item.getToStatus().name(),
+                                item.getAction(),
+                                item.getActor() == null ? "System" : item.getActor().getFullName(),
+                                item.getRemarks(),
+                                item.getCreatedAt()))
+                        .toList();
         return new GrantApplicationResponse(
                 application.getId(),
                 application.getBeneficiary().getId(),
@@ -410,6 +547,8 @@ public class GrantApplicationService {
                         ? "NORMAL" : application.getRoutingPriority().name(),
                 application.isEscalated(),
                 history,
+                statusHistory,
+                isWithdrawalAllowed(application),
                 documents,
                 new BeneficiaryVerificationDetails(
                         application.getBeneficiary().getUser().getEmail(),

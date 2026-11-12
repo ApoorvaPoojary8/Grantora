@@ -21,4 +21,5 @@ public interface ApplicationDocumentRepository
             @Param("applicationId") Long applicationId);
     Optional<ApplicationDocument> findByIdAndApplication_Id(Long id, Long applicationId);
     long countByApplication_Id(Long applicationId);
+    void deleteAllByApplication_Id(Long applicationId);
 }

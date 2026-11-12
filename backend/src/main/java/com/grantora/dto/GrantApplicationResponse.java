@@ -23,6 +23,8 @@ public record GrantApplicationResponse(
         String routingPriority,
         boolean escalated,
         List<VerificationHistoryResponse> verificationHistory,
+        List<GrantApplicationStatusHistoryResponse> statusHistory,
+        boolean withdrawalAllowed,
         List<ApplicationDocumentResponse> documents,
         BeneficiaryVerificationDetails beneficiaryDetails
 ) {}

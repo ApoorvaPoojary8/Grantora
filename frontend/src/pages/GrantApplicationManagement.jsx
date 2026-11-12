@@ -5,6 +5,8 @@ import {
   getApplications,
   getMyApplications,
   submitApplication,
+  withdrawApplication,
+  deleteDraftApplication,
   updateApplication,
   uploadApplicationDocument,
   downloadApplicationDocument,
@@ -52,6 +54,7 @@ function GrantApplicationManagement() {
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [editingStatus, setEditingStatus] = useState(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -105,12 +108,23 @@ function GrantApplicationManagement() {
   const resetForm = () => {
     setForm({ ...emptyForm, eligibilityAnswers: {} });
     setEditingId(null);
+    setEditingStatus(null);
     setDocuments([]);
   };
 
   const handleSave = async (event) => {
     event.preventDefault();
     const shouldSubmit = event.nativeEvent.submitter?.value === "submit";
+    if (
+      shouldSubmit &&
+      !window.confirm(
+        editingStatus === "NEEDS_CORRECTION"
+          ? "Resubmit this application with the corrected information?"
+          : "Submit this grant application for verification?"
+      )
+    ) {
+      return;
+    }
     setSaving(true);
     setActionError("");
     setSuccessMessage("");
@@ -157,19 +171,27 @@ function GrantApplicationManagement() {
               "Draft saved, but submission failed."
           );
           await loadApplications();
+          await handleViewDetails(savedApplication.id);
           return;
         }
       }
 
       setSuccessMessage(
         shouldSubmit
-          ? "Grant application submitted successfully."
+          ? editingStatus === "NEEDS_CORRECTION"
+            ? "Corrected application resubmitted successfully."
+            : "Grant application submitted successfully."
           : editingId
-            ? "Draft updated successfully."
+            ? editingStatus === "NEEDS_CORRECTION"
+              ? "Corrections saved successfully."
+              : "Draft updated successfully."
             : "Application draft saved successfully."
       );
       resetForm();
       await loadApplications();
+      if (savedApplication?.id) {
+        await handleViewDetails(savedApplication.id);
+      }
     } catch (err) {
       setActionError(
         err.response?.data?.message ||
@@ -203,6 +225,7 @@ function GrantApplicationManagement() {
   const handleEdit = (application) => {
     const scheme = schemes.find((item) => item.id === application.schemeId);
     setEditingId(application.id);
+    setEditingStatus(application.status);
     setDocuments([]);
     setForm({
       schemeId: String(application.schemeId),
@@ -215,18 +238,77 @@ function GrantApplicationManagement() {
   };
 
   const handleSubmitDraft = async (application) => {
+    const isCorrection = application.status === "NEEDS_CORRECTION";
+    if (
+      !window.confirm(
+        isCorrection
+          ? "Resubmit this application with its saved corrected information?"
+          : "Submit this grant application for verification?"
+      )
+    ) {
+      return;
+    }
     setActionError("");
     setSuccessMessage("");
 
     try {
       await submitApplication(application.id);
-      setSuccessMessage("Grant application submitted successfully.");
+      setSuccessMessage(
+        isCorrection
+          ? "Corrected application resubmitted successfully."
+          : "Grant application submitted successfully."
+      );
       await loadApplications();
+      await handleViewDetails(application.id);
     } catch (err) {
       setActionError(
         err.response?.data?.message ||
           err.response?.data?.error ||
           "Unable to submit grant application."
+      );
+    }
+  };
+
+  const handleDeleteDraft = async (application) => {
+    if (!window.confirm("Permanently delete this draft application?")) return;
+    setActionError("");
+    setSuccessMessage("");
+    try {
+      await deleteDraftApplication(application.id);
+      setSuccessMessage("Draft application deleted successfully.");
+      if (selectedApplication?.id === application.id) {
+        setSelectedApplication(null);
+      }
+      await loadApplications();
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          "Unable to delete draft application."
+      );
+    }
+  };
+
+  const handleWithdraw = async (application) => {
+    if (
+      !window.confirm(
+        "Withdraw this application? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+    setActionError("");
+    setSuccessMessage("");
+    try {
+      await withdrawApplication(application.id);
+      setSuccessMessage("Application withdrawn successfully.");
+      await loadApplications();
+      await handleViewDetails(application.id);
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          "Unable to withdraw this application."
       );
     }
   };
@@ -307,7 +389,13 @@ function GrantApplicationManagement() {
 
       {isBeneficiary && (
         <form className="grant-applications__form" onSubmit={handleSave}>
-          <h3>{editingId ? "Edit draft" : "Start an application"}</h3>
+          <h3>
+            {editingId
+              ? editingStatus === "NEEDS_CORRECTION"
+                ? "Edit requested corrections"
+                : "Edit draft"
+              : "Start an application"}
+          </h3>
           <label>
             Grant scheme
             <select
@@ -387,6 +475,7 @@ function GrantApplicationManagement() {
                   {!question.required && " (optional)"}
                   <select
                     value={form.eligibilityAnswers[question.id] || ""}
+                    required={question.required}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
@@ -423,7 +512,11 @@ function GrantApplicationManagement() {
               value="draft"
               disabled={saving}
             >
-              {saving ? "Saving..." : "Save draft"}
+              {saving
+                ? "Saving..."
+                : editingStatus === "NEEDS_CORRECTION"
+                  ? "Save corrections"
+                  : "Save draft"}
             </button>
             <button
               className="grant-applications__button grant-applications__button--primary"
@@ -432,7 +525,11 @@ function GrantApplicationManagement() {
               value="submit"
               disabled={saving || availableSchemes.length === 0}
             >
-              {saving ? "Saving..." : "Submit application"}
+              {saving
+                ? "Saving..."
+                : editingStatus === "NEEDS_CORRECTION"
+                  ? "Resubmit"
+                  : "Submit application"}
             </button>
             {editingId && (
               <button
@@ -542,11 +639,32 @@ function GrantApplicationManagement() {
                             className="grant-applications__button grant-applications__button--primary"
                             type="button"
                             onClick={() => handleSubmitDraft(application)}
+                            disabled={editingId === application.id}
                           >
                           {application.status === "NEEDS_CORRECTION" ? "Resubmit" : "Submit"}
                           </button>
+                          {application.status === "DRAFT" && (
+                            <button
+                              className="grant-applications__button grant-applications__button--secondary"
+                              type="button"
+                              onClick={() => handleDeleteDraft(application)}
+                            >
+                              Delete Draft
+                            </button>
+                          )}
                         </>
                       )}
+                      {isBeneficiary &&
+                        application.status === "SUBMITTED" &&
+                        application.withdrawalAllowed && (
+                          <button
+                            className="grant-applications__button grant-applications__button--secondary"
+                            type="button"
+                            onClick={() => handleWithdraw(application)}
+                          >
+                            Withdraw Application
+                          </button>
+                        )}
                     </div>
                   </td>
                 </tr>
@@ -729,6 +847,40 @@ function GrantApplicationManagement() {
                 </ul>
               ) : (
                 <p>Your application has not entered verification yet.</p>
+              )}
+              {["APPROVED", "REJECTED", "WITHDRAWN"].includes(
+                selectedApplication.status
+              ) && (
+                <>
+                  <h5>Final remarks</h5>
+                  {selectedApplication.statusHistory?.some((item) => item.remarks) ? (
+                    <ul>
+                      {selectedApplication.statusHistory
+                        .filter((item) => item.remarks)
+                        .map((item) => (
+                          <li key={item.id}>
+                            {item.action.replaceAll("_", " ")} by {item.actorName} at{" "}
+                            {new Date(item.createdAt).toLocaleString()}: {item.remarks}
+                          </li>
+                        ))}
+                    </ul>
+                  ) : selectedApplication.verificationHistory?.some(
+                      (item) => item.remarks
+                    ) ? (
+                    <ul>
+                      {selectedApplication.verificationHistory
+                        .filter((item) => item.remarks)
+                        .map((item) => (
+                          <li key={item.id}>
+                            {item.action.replaceAll("_", " ")} by {item.actorName} at{" "}
+                            {new Date(item.createdAt).toLocaleString()}: {item.remarks}
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <p>No additional remarks were provided.</p>
+                  )}
+                </>
               )}
             </section>
           )}

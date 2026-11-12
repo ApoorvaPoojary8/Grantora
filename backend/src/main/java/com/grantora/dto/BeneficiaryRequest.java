@@ -9,5 +9,6 @@ public record BeneficiaryRequest(
         String address,
         String state,
         String district,
-        String category
+        String category,
+        String phone
 ) {}

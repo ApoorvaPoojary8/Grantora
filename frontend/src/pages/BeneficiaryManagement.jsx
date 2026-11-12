@@ -8,6 +8,9 @@ import {
 import "../styles/BeneficiaryManagement.css";
 
 const initialForm = {
+  fullName: "",
+  email: "",
+  phone: "",
   dateOfBirth: "",
   annualIncome: "",
   address: "",
@@ -36,6 +39,9 @@ function BeneficiaryManagement() {
       const profile = response.data;
 
       setForm({
+        fullName: profile.fullName || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
         dateOfBirth: profile.dateOfBirth || "",
         annualIncome: profile.annualIncome ?? "",
         address: profile.address || "",
@@ -44,17 +50,13 @@ function BeneficiaryManagement() {
         category: profile.category || "",
       });
 
-      setProfileExists(true);
+      setProfileExists(profile.id != null);
     } catch (err) {
-      // No profile yet: show the create-profile form.
-      if (err.response?.status === 404) {
-        setProfileExists(false);
-      } else {
-        setError(
-          err.response?.data?.message ||
-            "Unable to load beneficiary profile."
-        );
-      }
+      setError(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          "Unable to load beneficiary profile."
+      );
     } finally {
       setLoading(false);
     }
@@ -78,19 +80,37 @@ function BeneficiaryManagement() {
 
     try {
       const payload = {
-        ...form,
+        dateOfBirth: form.dateOfBirth,
         annualIncome:
           form.annualIncome === "" ? null : Number(form.annualIncome),
+        address: form.address,
+        state: form.state,
+        district: form.district,
+        category: form.category,
+        phone: form.phone,
       };
 
-      if (profileExists) {
-        await updateMyBeneficiaryProfile(payload);
-        setMessage("Beneficiary profile updated successfully!");
-      } else {
-        await createBeneficiary(payload);
-        setProfileExists(true);
-        setMessage("Beneficiary profile created successfully!");
-      }
+      const response = profileExists
+        ? await updateMyBeneficiaryProfile(payload)
+        : await createBeneficiary(payload);
+      const profile = response.data;
+      setForm({
+        fullName: profile.fullName || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        dateOfBirth: profile.dateOfBirth || "",
+        annualIncome: profile.annualIncome ?? "",
+        address: profile.address || "",
+        state: profile.state || "",
+        district: profile.district || "",
+        category: profile.category || "",
+      });
+      setProfileExists(profile.id != null);
+      setMessage(
+        profileExists
+          ? "Beneficiary profile updated successfully!"
+          : "Beneficiary profile created successfully!"
+      );
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -115,6 +135,21 @@ function BeneficiaryManagement() {
       {error && <div style={styles.error}>{error}</div>}
 
       <form onSubmit={handleSubmit} style={styles.form}>
+        <label>Full Name</label>
+        <input type="text" name="fullName" value={form.fullName} readOnly />
+
+        <label>Email</label>
+        <input type="email" name="email" value={form.email} readOnly />
+
+        <label>Phone</label>
+        <input
+          type="tel"
+          name="phone"
+          value={form.phone}
+          onChange={handleChange}
+          required
+        />
+
         <label>Date of Birth</label>
         <input
           type="date"

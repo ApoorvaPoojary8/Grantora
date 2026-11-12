@@ -66,6 +66,7 @@ class VerificationWorkflowServiceTest {
         application.setAssignedOfficer(fieldOfficer);
 
         when(applicationRepository.findById(99L)).thenReturn(Optional.of(application));
+        when(applicationRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(application));
         when(applicationRepository.save(any(GrantApplication.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(historyRepository.save(any(ApplicationVerification.class)))
@@ -84,7 +85,7 @@ class VerificationWorkflowServiceTest {
                 true, true, true, true));
 
         assertEquals(VerificationStage.DISTRICT, application.getWorkflowStage());
-        assertEquals(GrantApplicationStatus.DISTRICT_REVIEW, application.getStatus());
+        assertEquals(GrantApplicationStatus.UNDER_VERIFICATION, application.getStatus());
         assertEquals(districtOfficer, application.getAssignedOfficer());
 
         when(userRepository.findByEmail("district@test.local"))
@@ -96,7 +97,7 @@ class VerificationWorkflowServiceTest {
                         false, false, false, false));
 
         assertEquals(VerificationStage.STATE, application.getWorkflowStage());
-        assertEquals(GrantApplicationStatus.STATE_REVIEW, application.getStatus());
+        assertEquals(GrantApplicationStatus.UNDER_VERIFICATION, application.getStatus());
         assertEquals(stateOfficer, application.getAssignedOfficer());
 
         when(userRepository.findByEmail("state@test.local"))
@@ -109,6 +110,28 @@ class VerificationWorkflowServiceTest {
         assertEquals(GrantApplicationStatus.APPROVED, application.getStatus());
         assertEquals(null, application.getAssignedOfficer());
         verify(historyRepository, times(5)).save(any(ApplicationVerification.class));
+    }
+
+    @Test
+    void submissionAndCorrectionResubmissionKeepTheApplicationInSubmittedStatus() {
+        when(userRepository.findByEmail("beneficiary@test.local"))
+                .thenReturn(Optional.of(application.getBeneficiary().getUser()));
+        when(userRepository.findAll()).thenReturn(List.of(fieldOfficer));
+        application.setStatus(GrantApplicationStatus.DRAFT);
+
+        workflow.submit(application, "beneficiary@test.local");
+
+        assertEquals(GrantApplicationStatus.SUBMITTED, application.getStatus());
+        assertEquals(VerificationStage.FIELD, application.getWorkflowStage());
+        assertEquals(fieldOfficer, application.getAssignedOfficer());
+
+        application.setStatus(GrantApplicationStatus.NEEDS_CORRECTION);
+        workflow.submit(application, "beneficiary@test.local");
+
+        assertEquals(GrantApplicationStatus.SUBMITTED, application.getStatus());
+        assertEquals(VerificationStage.FIELD, application.getWorkflowStage());
+        assertEquals(fieldOfficer, application.getAssignedOfficer());
+        verify(historyRepository, times(3)).save(any(ApplicationVerification.class));
     }
 
     @Test

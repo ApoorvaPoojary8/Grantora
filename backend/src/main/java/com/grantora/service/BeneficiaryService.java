@@ -4,12 +4,15 @@ package com.grantora.service;
 import com.grantora.dto.BeneficiaryRequest;
 import com.grantora.dto.BeneficiaryResponse;
 import com.grantora.entity.Beneficiary;
+import com.grantora.entity.Role;
 import com.grantora.entity.User;
 import com.grantora.repository.BeneficiaryRepository;
 import com.grantora.repository.UserRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -29,7 +32,17 @@ public class BeneficiaryService {
 
     private User getUserByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Authenticated user account not found."));
+    }
+
+    private User getBeneficiaryUser(String email) {
+        User user = getUserByEmail(email);
+        if (user.getRole() != Role.BENEFICIARY) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Only beneficiary accounts can manage beneficiary profiles.");
+        }
+        return user;
     }
 
     private BeneficiaryResponse toResponse(Beneficiary beneficiary) {
@@ -58,25 +71,39 @@ public class BeneficiaryService {
     }
 
     public BeneficiaryResponse getMyProfile(String email) {
-        User user = getUserByEmail(email);
-
-        Beneficiary beneficiary = beneficiaryRepository
-                .findByUser_Id(user.getId())
-                .orElseThrow(() ->
-                        new RuntimeException("Beneficiary profile not found"));
-
-        return toResponse(beneficiary);
+        User user = getBeneficiaryUser(email);
+        return beneficiaryRepository.findByUser_Id(user.getId())
+                .map(this::toResponse)
+                .orElseGet(() -> new BeneficiaryResponse(
+                        null,
+                        user.getId(),
+                        user.getFullName(),
+                        user.getEmail(),
+                        user.getPhone(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null));
     }
 
     public BeneficiaryResponse createMyProfile(
             String email,
             BeneficiaryRequest request) {
 
-        User user = getUserByEmail(email);
+        User user = userRepository.findByEmailForUpdate(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Authenticated user account not found."));
+        if (user.getRole() != Role.BENEFICIARY) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Only beneficiary accounts can manage beneficiary profiles.");
+        }
 
-        if (beneficiaryRepository.existsByUser_Id(user.getId())) {
-            throw new RuntimeException(
-                    "Beneficiary profile already exists");
+        Beneficiary existing = beneficiaryRepository.findByUser_Id(user.getId()).orElse(null);
+        if (existing != null) {
+            applyRequest(existing, request);
+            return toResponse(beneficiaryRepository.save(existing));
         }
 
         Beneficiary beneficiary = new Beneficiary();
@@ -90,12 +117,12 @@ public class BeneficiaryService {
             String email,
             BeneficiaryRequest request) {
 
-        User user = getUserByEmail(email);
+        User user = getBeneficiaryUser(email);
 
         Beneficiary beneficiary = beneficiaryRepository
                 .findByUser_Id(user.getId())
-                .orElseThrow(() ->
-                        new RuntimeException("Beneficiary profile not found"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Beneficiary profile is not initialized."));
 
         applyRequest(beneficiary, request);
 
@@ -112,6 +139,9 @@ public class BeneficiaryService {
         beneficiary.setState(request.state());
         beneficiary.setDistrict(request.district());
         beneficiary.setCategory(request.category());
+        if (request.phone() != null) {
+            beneficiary.getUser().setPhone(request.phone().trim());
+        }
     }
 
     public BeneficiaryResponse getBeneficiaryById(Long id) {

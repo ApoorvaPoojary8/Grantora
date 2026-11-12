@@ -16,6 +16,12 @@ export const updateApplication = (id, data) =>
 export const submitApplication = (id) =>
   api.post(`${API_URL}/${id}/submit`);
 
+export const withdrawApplication = (id) =>
+  api.post(`${API_URL}/${id}/withdraw`);
+
+export const deleteDraftApplication = (id) =>
+  api.delete(`${API_URL}/${id}`);
+
 export const updateApplicationStatus = (id, status) =>
   api.patch(`${API_URL}/${id}/status`, { status });
 

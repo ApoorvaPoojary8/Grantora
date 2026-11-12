@@ -89,6 +89,21 @@ public class GrantApplicationController {
         return applicationService.submitDraft(id, authentication.getName());
     }
 
+    @PostMapping("/{id}/withdraw")
+    public GrantApplicationResponse withdrawApplication(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return applicationService.withdraw(id, authentication.getName());
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDraft(
+            @PathVariable Long id,
+            Authentication authentication) {
+        applicationService.deleteDraft(id, authentication.getName());
+    }
+
     @PatchMapping("/{id}/status")
     public GrantApplicationResponse updateStatus(
             @PathVariable Long id,

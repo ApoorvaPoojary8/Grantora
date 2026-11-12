@@ -22,6 +22,8 @@ import java.util.Objects;
 public class VerificationWorkflowService {
 
     private static final List<GrantApplicationStatus> PENDING_REVIEW_STATUSES = List.of(
+            GrantApplicationStatus.SUBMITTED,
+            GrantApplicationStatus.UNDER_VERIFICATION,
             GrantApplicationStatus.FIELD_VERIFICATION,
             GrantApplicationStatus.DISTRICT_REVIEW,
             GrantApplicationStatus.STATE_REVIEW);
@@ -52,7 +54,7 @@ public class VerificationWorkflowService {
             application.setAssignedOfficer(selectOfficer(application, VerificationStage.FIELD, null));
             application.setRoutingPriority(resolvePriority(application));
             application.setEscalated(false);
-            application.setStatus(GrantApplicationStatus.FIELD_VERIFICATION);
+            application.setStatus(GrantApplicationStatus.SUBMITTED);
             record(application, VerificationStage.FIELD, "SUBMITTED", beneficiary,
                     application.getAssignedOfficer(), "Application submitted for field verification.");
             record(application, VerificationStage.FIELD, "ASSIGNED", null,
@@ -65,7 +67,7 @@ public class VerificationWorkflowService {
             }
             application.setRoutingPriority(resolvePriority(application));
             application.setEscalated(false);
-            application.setStatus(statusFor(application.getWorkflowStage()));
+            application.setStatus(GrantApplicationStatus.SUBMITTED);
             record(application, application.getWorkflowStage(), "RESUBMITTED", beneficiary,
                     application.getAssignedOfficer(), "Beneficiary submitted requested corrections.");
         } else {
@@ -187,7 +189,7 @@ public class VerificationWorkflowService {
         application.setWorkflowStage(nextStage);
         application.setAssignedOfficer(nextOfficer);
         application.setEscalated(false);
-        application.setStatus(statusFor(nextStage));
+        application.setStatus(GrantApplicationStatus.UNDER_VERIFICATION);
         record(application, nextStage, "ASSIGNED", null, nextOfficer,
                 "Automatically advanced to " + nextStage.name().toLowerCase() + " review.");
     }
@@ -349,14 +351,14 @@ public class VerificationWorkflowService {
 
     private boolean isAwaitingReview(GrantApplication application) {
         if (application.getWorkflowStage() == null
-                || !PENDING_REVIEW_STATUSES.contains(application.getStatus())) {
-            return false;
-        }
-        return application.getStatus() == statusFor(application.getWorkflowStage());
+                || !PENDING_REVIEW_STATUSES.contains(application.getStatus())) return false;
+        return application.getStatus() == GrantApplicationStatus.SUBMITTED
+                || application.getStatus() == GrantApplicationStatus.UNDER_VERIFICATION
+                || application.getStatus() == statusFor(application.getWorkflowStage());
     }
 
     private GrantApplication findApplication(Long id) {
-        return applicationRepository.findById(id)
+        return applicationRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application not found"));
     }
