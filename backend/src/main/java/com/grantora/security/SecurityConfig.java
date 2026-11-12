@@ -97,6 +97,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/beneficiaries/**").authenticated()
 
                 .requestMatchers("/api/verification/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/workflow/deadlines").hasAnyRole("ADMIN", "OFFICER")
+                .requestMatchers(HttpMethod.PUT, "/api/workflow/deadlines").hasRole("ADMIN")
+                .requestMatchers("/api/workflow/escalations/**").hasAnyRole("ADMIN", "OFFICER")
+                .requestMatchers("/api/workflow/notifications/**").authenticated()
 
                 .anyRequest().authenticated()
             )

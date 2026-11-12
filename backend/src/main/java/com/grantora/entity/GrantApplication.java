@@ -67,6 +67,10 @@ public class GrantApplication {
 
     private Boolean escalated = false;
 
+    @Column(name = "task_assigned_at") private java.time.LocalDateTime taskAssignedAt;
+    @Column(name = "task_due_at") private java.time.LocalDateTime taskDueAt;
+    @Column(name = "task_completed_at") private java.time.LocalDateTime taskCompletedAt;
+
     public Long getId() {
         return id;
     }
@@ -177,4 +181,10 @@ public class GrantApplication {
     public void setEscalated(boolean escalated) {
         this.escalated = escalated;
     }
+    public java.time.LocalDateTime getTaskAssignedAt() { return taskAssignedAt; }
+    public void setTaskAssignedAt(java.time.LocalDateTime value) { taskAssignedAt = value; }
+    public java.time.LocalDateTime getTaskDueAt() { return taskDueAt; }
+    public void setTaskDueAt(java.time.LocalDateTime value) { taskDueAt = value; }
+    public java.time.LocalDateTime getTaskCompletedAt() { return taskCompletedAt; }
+    public void setTaskCompletedAt(java.time.LocalDateTime value) { taskCompletedAt = value; }
 }

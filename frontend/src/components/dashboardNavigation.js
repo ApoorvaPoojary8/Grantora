@@ -50,6 +50,7 @@ export const dashboardNavigation = {
       icon: BarChart3,
     },
     { label: "Profile", path: "/admin/profile", icon: UserRound },
+    { label: "Workflow Settings", path: "/admin/workflow-settings", icon: Settings2 },
   ],
   BENEFICIARY: [
     {
@@ -103,6 +104,7 @@ export const dashboardNavigation = {
       icon: FileClock,
     },
     { label: "Profile", path: "/officer/profile", icon: UserRound },
+    { label: "Notifications", path: "/officer/notifications", icon: Bell },
   ],
 };
 

@@ -7,6 +7,7 @@ import com.grantora.repository.ApplicationDocumentRepository;
 import com.grantora.repository.GrantApplicationRepository;
 import com.grantora.repository.UserRepository;
 import com.grantora.repository.VerificationRoutingRuleRepository;
+import com.grantora.repository.WorkflowDeadlineConfigRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class VerificationWorkflowService {
     private final ApplicationVerificationRepository historyRepository;
     private final ApplicationDocumentRepository documentRepository;
     private final VerificationRoutingRuleRepository routingRuleRepository;
+    private WorkflowDeadlineConfigRepository deadlineConfigs;
 
     public VerificationWorkflowService(
             GrantApplicationRepository applicationRepository,
@@ -47,6 +49,14 @@ public class VerificationWorkflowService {
         this.routingRuleRepository = routingRuleRepository;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public VerificationWorkflowService(GrantApplicationRepository a, UserRepository u,
+            ApplicationVerificationRepository h, ApplicationDocumentRepository d,
+            VerificationRoutingRuleRepository r, WorkflowDeadlineConfigRepository c) {
+        this(a, u, h, d, r);
+        this.deadlineConfigs = c;
+    }
+
     public GrantApplication submit(GrantApplication application, String email) {
         User beneficiary = getUser(email);
         if (application.getStatus() == GrantApplicationStatus.DRAFT) {
@@ -54,6 +64,7 @@ public class VerificationWorkflowService {
             VerificationRoutingRule rule = matchingRule(application);
             application.setWorkflowStage(VerificationStage.FIELD);
             application.setAssignedOfficer(selectOfficer(application, VerificationStage.FIELD, null));
+            startTask(application, VerificationStage.FIELD);
             application.setRoutingPriority(
                     rule == null ? RoutingPriority.NORMAL : rule.getPriority());
             application.setStateApprovalRequired(
@@ -182,10 +193,13 @@ public class VerificationWorkflowService {
         } else if (decision == VerificationDecision.REJECTED) {
             application.setStatus(GrantApplicationStatus.REJECTED);
             application.setAssignedOfficer(null);
+            application.setTaskCompletedAt(java.time.LocalDateTime.now());
         } else if (stage == VerificationStage.FIELD) {
+            application.setTaskCompletedAt(java.time.LocalDateTime.now());
             assignedStage = VerificationStage.DISTRICT;
             nextOfficer = advance(application, assignedStage);
         } else if (stage == VerificationStage.DISTRICT) {
+            application.setTaskCompletedAt(java.time.LocalDateTime.now());
             if (application.requiresStateApproval()) {
                 assignedStage = VerificationStage.STATE;
                 nextOfficer = advance(application, assignedStage);
@@ -194,6 +208,7 @@ public class VerificationWorkflowService {
                 application.setAssignedOfficer(null);
             }
         } else {
+            application.setTaskCompletedAt(java.time.LocalDateTime.now());
             application.setStatus(GrantApplicationStatus.APPROVED);
             application.setAssignedOfficer(null);
         }
@@ -230,6 +245,7 @@ public class VerificationWorkflowService {
         }
         GrantApplicationStatus status = application.getStatus();
         application.setAssignedOfficer(officer);
+        if (application.getTaskAssignedAt() == null) startTask(application, application.getWorkflowStage());
         application.setEscalated(false);
         record(application, application.getWorkflowStage(), "ASSIGNED", actor, officer,
                 "Application assigned by Admin.", status, status, application.getWorkflowStage());
@@ -262,7 +278,21 @@ public class VerificationWorkflowService {
         application.setAssignedOfficer(nextOfficer);
         application.setEscalated(false);
         application.setStatus(GrantApplicationStatus.UNDER_VERIFICATION);
+        startTask(application, nextStage);
         return nextOfficer;
+    }
+
+    private void startTask(GrantApplication application, VerificationStage stage) {
+        int days = 5;
+        if (deadlineConfigs != null) {
+            WorkflowDeadlineConfig c = deadlineConfigs.findById(1L)
+                    .orElseGet(() -> deadlineConfigs.save(new WorkflowDeadlineConfig()));
+            days = c.days(stage);
+        }
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        application.setTaskAssignedAt(now);
+        application.setTaskDueAt(now.plusDays(days));
+        application.setTaskCompletedAt(null);
     }
 
     private void requireDecisionAccess(
@@ -332,10 +362,7 @@ public class VerificationWorkflowService {
                 .sorted(Comparator.comparing(User::getId))
                 .toList();
         if (eligible.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "No active " + stage.name().toLowerCase()
-                            + " officer is configured for the beneficiary's jurisdiction.");
+            return null;
         }
         if (exclude == null) {
             return eligible.get(Math.floorMod(application.getId().intValue(), eligible.size()));

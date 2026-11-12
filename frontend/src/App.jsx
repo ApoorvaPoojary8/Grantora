@@ -15,6 +15,7 @@ import SchemeManagement from "./pages/SchemeManagement";
 import DashboardPlaceholder from "./pages/DashboardPlaceholder";
 import ProtectedRoute from "./components/ProtectedRoute";
 import VerificationWorkflow from "./pages/VerificationWorkflow";
+import WorkflowSettings from "./pages/WorkflowSettings";
 
 function getAuthenticatedHome() {
   const token = localStorage.getItem("token");
@@ -91,6 +92,7 @@ function App() {
               element={<VerificationWorkflow />}
               handle={{ pageTitle: "Verification & Approvals" }}
             />
+            <Route path="/admin/workflow-settings" element={<WorkflowSettings />} handle={{ pageTitle: "Workflow Settings" }} />
             <Route
               path="/admin/disbursement"
               element={<DashboardPlaceholder title="Grant Disbursement" />}
@@ -181,6 +183,7 @@ function App() {
               element={<DashboardPlaceholder title="Profile" />}
               handle={{ pageTitle: "Profile" }}
             />
+            <Route path="/officer/notifications" element={<DashboardPlaceholder title="Notifications" />} handle={{ pageTitle: "Notifications" }} />
           </Route>
         </Route>
 

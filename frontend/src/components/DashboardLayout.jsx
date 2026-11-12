@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, ChevronLeft, Menu, X } from "lucide-react";
 import {
   Link,
@@ -12,11 +12,14 @@ import {
   roleLabels,
 } from "./dashboardNavigation";
 import "../styles/DashboardLayout.css";
+import api from "../services/api";
 
 function DashboardLayout({ role }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationData, setNotificationData] = useState({ unreadCount: 0, items: [] });
+  useEffect(() => { api.get("/workflow/notifications").then(({ data }) => setNotificationData(data)).catch(() => {}); }, []);
   const location = useLocation();
   const navigation = dashboardNavigation[role] || [];
   const currentPage = navigation.find(
@@ -155,6 +158,7 @@ function DashboardLayout({ role }) {
                 onClick={() => setNotificationsOpen((open) => !open)}
               >
                 <Bell size={19} />
+                {notificationData.unreadCount > 0 && <span className="notification-count">{notificationData.unreadCount}</span>}
               </button>
               {notificationsOpen && (
                 <div
@@ -162,6 +166,8 @@ function DashboardLayout({ role }) {
                   role="status"
                 >
                   <strong>Notifications</strong>
+                  {notificationData.items.slice(0, 5).map((item) => <button className="notification-item" key={item.id} onClick={() => api.post(`/workflow/notifications/${item.id}/read`).then(() => api.get("/workflow/notifications").then(({ data }) => setNotificationData(data)))}>{item.message}{!item.readAt && <small> • New</small>}</button>)}
+                  {notificationData.items.length === 0 && <p>No notifications yet.</p>}
                   {notificationPath ? (
                     <>
                       <p>View your latest updates and notifications.</p>
