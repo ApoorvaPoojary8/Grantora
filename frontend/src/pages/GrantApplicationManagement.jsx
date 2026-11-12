@@ -1004,6 +1004,14 @@ function GrantApplicationManagement() {
                   ? ` · ${selectedApplication.workflowStage} review`
                   : ""}
               </p>
+              {selectedApplication.workflowStage && (
+                <p>
+                  Current assignee: {selectedApplication.assignedOfficerName || "Awaiting assignment"}
+                </p>
+              )}
+              {selectedApplication.status === "APPROVED" && (
+                <p>This application is approved and available to the disbursement workflow.</p>
+              )}
               {selectedApplication.documents?.length > 0 && (
                 <>
                   <h5>Submitted documents</h5>
@@ -1062,16 +1070,35 @@ function GrantApplicationManagement() {
                 </section>
               )}
               <h5>Review history</h5>
-              {selectedApplication.verificationHistory?.length ? (
-                <ul>
-                  {selectedApplication.verificationHistory.map((item) => (
-                    <li key={item.id}>
-                      {item.stage}: {item.action.replaceAll("_", " ")} by{" "}
-                      {item.actorName} at {new Date(item.createdAt).toLocaleString()}
-                      {item.remarks ? ` — ${item.remarks}` : ""}
-                    </li>
-                  ))}
-                </ul>
+              {selectedApplication.verificationHistory?.length ||
+              selectedApplication.statusHistory?.length ? (
+                <ol>
+                  {[
+                    ...(selectedApplication.statusHistory || []).map((item) => ({
+                      ...item,
+                      timelineType: "status",
+                    })),
+                    ...(selectedApplication.verificationHistory || []).map((item) => ({
+                      ...item,
+                      timelineType: "verification",
+                    })),
+                  ]
+                    .sort((left, right) =>
+                      new Date(left.createdAt) - new Date(right.createdAt)
+                    )
+                    .map((item) => (
+                      <li key={`${item.timelineType}-${item.id}`}>
+                        {item.timelineType === "verification" && `${item.stage}: `}
+                        {item.action.replaceAll("_", " ")} by {item.actorName || "System"} at{" "}
+                        {new Date(item.createdAt).toLocaleString()}
+                        {item.previousStatus || item.newStatus
+                          ? ` · ${item.previousStatus || "—"} → ${item.newStatus || "—"}`
+                          : ""}
+                        {item.nextStage ? ` · Next: ${item.nextStage}` : ""}
+                        {item.remarks ? ` — ${item.remarks}` : ""}
+                      </li>
+                    ))}
+                </ol>
               ) : (
                 <p>Your application has not entered verification yet.</p>
               )}

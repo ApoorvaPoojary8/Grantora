@@ -19,6 +19,18 @@ public class ApplicationVerification {
     @Column(nullable = false, length = 20)
     private VerificationStage stage;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "previous_status", length = 30)
+    private GrantApplicationStatus previousStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "new_status", length = 30)
+    private GrantApplicationStatus newStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "next_stage", length = 20)
+    private VerificationStage nextStage;
+
     @Column(nullable = false, length = 30)
     private String action;
 
@@ -58,6 +70,16 @@ public class ApplicationVerification {
     public void setApplication(GrantApplication application) { this.application = application; }
     public VerificationStage getStage() { return stage; }
     public void setStage(VerificationStage stage) { this.stage = stage; }
+    public GrantApplicationStatus getPreviousStatus() { return previousStatus; }
+    public void setPreviousStatus(GrantApplicationStatus previousStatus) {
+        this.previousStatus = previousStatus;
+    }
+    public GrantApplicationStatus getNewStatus() { return newStatus; }
+    public void setNewStatus(GrantApplicationStatus newStatus) {
+        this.newStatus = newStatus;
+    }
+    public VerificationStage getNextStage() { return nextStage; }
+    public void setNextStage(VerificationStage nextStage) { this.nextStage = nextStage; }
     public String getAction() { return action; }
     public void setAction(String action) { this.action = action; }
     public User getActor() { return actor; }

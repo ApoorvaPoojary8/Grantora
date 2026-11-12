@@ -16,5 +16,6 @@ public record VerificationRoutingRuleRequest(
         BigDecimal minimumAmount,
         @DecimalMin("0.00")
         BigDecimal maximumAmount,
-        @NotNull RoutingPriority priority
+        @NotNull RoutingPriority priority,
+        Boolean stateApprovalRequired
 ) {}

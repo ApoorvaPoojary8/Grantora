@@ -62,6 +62,9 @@ public class GrantApplication {
     @Column(name = "routing_priority", length = 20)
     private RoutingPriority routingPriority = RoutingPriority.NORMAL;
 
+    @Column(name = "state_approval_required")
+    private Boolean stateApprovalRequired = true;
+
     private Boolean escalated = false;
 
     public Long getId() {
@@ -157,6 +160,14 @@ public class GrantApplication {
 
     public void setRoutingPriority(RoutingPriority routingPriority) {
         this.routingPriority = routingPriority;
+    }
+
+    public boolean requiresStateApproval() {
+        return !Boolean.FALSE.equals(stateApprovalRequired);
+    }
+
+    public void setStateApprovalRequired(Boolean stateApprovalRequired) {
+        this.stateApprovalRequired = stateApprovalRequired;
     }
 
     public boolean isEscalated() {

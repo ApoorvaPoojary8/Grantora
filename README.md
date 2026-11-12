@@ -120,14 +120,17 @@ Set your database credentials using environment variables. Do not commit passwor
 
 ### Three-level verification workflow
 
-Submitted applications are assigned to an active Field Officer whose configured state and district match the beneficiary. The required path is always Field → District → State; score/amount routing rules set queue priority (NORMAL, PRIORITY, or URGENT), and never bypass a level.
+Submitted applications are assigned to an active Field Officer whose configured state and district match the beneficiary. Field and District review are mandatory. Admin-configured score/amount rules determine queue priority and whether State approval is additionally required; existing applications retain their routing decision.
 
 - Field Officers review beneficiary identity, address, application details, and uploaded evidence; confirming a verification decision requires all four checklist items and at least one uploaded document.
-- District Officers review the field report and may approve to State review, reject, or return the application for beneficiary correction.
-- State Officers or Admins make the final approval/rejection. Admin decisions are limited to the State stage.
+- District Officers review the field report and may approve to State review when the matching rule requires it, otherwise final approval is recorded at District. They may also reject or return the application for beneficiary correction.
+- State Officers or Admins make the final approval/rejection when State review is required. Admin decisions are limited to the State stage.
+- Applications must pass persisted eligibility checks before submission; ineligible or incomplete applications cannot enter officer queues.
 - Beneficiaries can view progress and remarks but cannot change verification decisions.
 - Rejections and correction requests require remarks. Corrections return to the same level; direct status changes are disabled.
 - An authorized officer or Admin can escalate a pending application by reassigning it to another officer at the same level and jurisdiction.
+- Admins can manually assign or reassign a pending application only to an active officer at the current stage and matching jurisdiction. Assignment, decision, status transition, next stage, actor, remarks, and timestamp are retained in the verification history.
+- Final approvals appear in the Admin Grant Disbursement queue; this queue marks eligibility for the disbursement workflow and does not itself execute a payment.
 - Documents are stored in MySQL (PDF, PNG, or JPEG; max 10 MB per file and 20 per application). Only the application owner, Admin, or an officer authorized for the application may download them.
 
 Admins configure officer accounts/jurisdictions in **Verification & Approvals**. Existing Officer accounts must be assigned a level (`FIELD`, `DISTRICT`, or `STATE`) and matching state/district before they can receive applications. Routing rules are also configured there; rule ranges cannot overlap, and existing application priorities are not retroactively changed. Existing `SUBMITTED` or `UNDER_REVIEW` applications from before this workflow have no stage or assignee and require a reviewed data backfill before deployment; they are not silently advanced.
@@ -141,8 +144,10 @@ GET    /api/applications/verification/assigned
 GET    /api/applications/verification/history
 POST   /api/applications/{id}/decision
 POST   /api/applications/{id}/escalate
+POST   /api/applications/{id}/assignment        (Admin only)
 POST   /api/applications/{id}/documents
 GET    /api/applications/{id}/documents/{documentId}
+GET    /api/applications/disbursement/eligible  (Admin only)
 GET/POST/PUT/DELETE /api/verification/routing-rules
 ```
 

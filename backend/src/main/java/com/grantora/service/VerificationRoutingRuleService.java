@@ -86,6 +86,9 @@ public class VerificationRoutingRuleService {
         rule.setMinimumAmount(request.minimumAmount());
         rule.setMaximumAmount(request.maximumAmount());
         rule.setPriority(request.priority());
+        rule.setStateApprovalRequired(
+                request.stateApprovalRequired() == null
+                        || request.stateApprovalRequired());
         return rule;
     }
 }

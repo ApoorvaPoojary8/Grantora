@@ -27,6 +27,7 @@ class VerificationWorkflowServiceTest {
     private UserRepository userRepository;
     private ApplicationVerificationRepository historyRepository;
     private ApplicationDocumentRepository documentRepository;
+    private VerificationRoutingRuleRepository routingRules;
     private VerificationWorkflowService workflow;
     private GrantApplication application;
     private User fieldOfficer;
@@ -39,8 +40,7 @@ class VerificationWorkflowServiceTest {
         userRepository = mock(UserRepository.class);
         historyRepository = mock(ApplicationVerificationRepository.class);
         documentRepository = mock(ApplicationDocumentRepository.class);
-        VerificationRoutingRuleRepository routingRules =
-                mock(VerificationRoutingRuleRepository.class);
+        routingRules = mock(VerificationRoutingRuleRepository.class);
         workflow = new VerificationWorkflowService(
                 applicationRepository,
                 userRepository,
@@ -135,6 +135,26 @@ class VerificationWorkflowServiceTest {
     }
 
     @Test
+    void submissionPersistsConfiguredStateApprovalRequirement() {
+        when(userRepository.findByEmail("beneficiary@test.local"))
+                .thenReturn(Optional.of(application.getBeneficiary().getUser()));
+        when(userRepository.findAll()).thenReturn(List.of(fieldOfficer));
+        VerificationRoutingRule rule = new VerificationRoutingRule();
+        rule.setMinimumScore(BigDecimal.ZERO);
+        rule.setMaximumScore(BigDecimal.valueOf(100));
+        rule.setMinimumAmount(BigDecimal.ZERO);
+        rule.setPriority(RoutingPriority.NORMAL);
+        rule.setStateApprovalRequired(false);
+        when(routingRules.findAllByOrderByIdAsc()).thenReturn(List.of(rule));
+        application.setStatus(GrantApplicationStatus.DRAFT);
+
+        workflow.submit(application, "beneficiary@test.local");
+
+        assertEquals(false, application.requiresStateApproval());
+        assertEquals(GrantApplicationStatus.SUBMITTED, application.getStatus());
+    }
+
+    @Test
     void fieldOfficerCannotSkipTheDistrictStage() {
         when(userRepository.findByEmail("field@test.local"))
                 .thenReturn(Optional.of(fieldOfficer));
@@ -205,6 +225,79 @@ class VerificationWorkflowServiceTest {
         assertEquals(VerificationStage.FIELD, application.getWorkflowStage());
         assertEquals(GrantApplicationStatus.NEEDS_CORRECTION, application.getStatus());
         assertEquals(fieldOfficer, application.getAssignedOfficer());
+    }
+
+    @Test
+    void districtCanFinalizeOnlyWhenConfiguredRoutingDoesNotRequireStateReview() {
+        when(userRepository.findByEmail("district@test.local"))
+                .thenReturn(Optional.of(districtOfficer));
+        application.setWorkflowStage(VerificationStage.DISTRICT);
+        application.setStatus(GrantApplicationStatus.UNDER_VERIFICATION);
+        application.setAssignedOfficer(districtOfficer);
+        application.setStateApprovalRequired(false);
+
+        workflow.decide(99L, "district@test.local", false,
+                new VerificationDecisionRequest(
+                        VerificationDecision.APPROVED, "District approval.",
+                        false, false, false, false));
+
+        assertEquals(GrantApplicationStatus.APPROVED, application.getStatus());
+        assertEquals(null, application.getAssignedOfficer());
+        var decision = org.mockito.ArgumentCaptor.forClass(ApplicationVerification.class);
+        verify(historyRepository).save(decision.capture());
+        assertEquals(GrantApplicationStatus.UNDER_VERIFICATION,
+                decision.getValue().getPreviousStatus());
+        assertEquals(GrantApplicationStatus.APPROVED, decision.getValue().getNewStatus());
+        assertEquals(null, decision.getValue().getNextStage());
+    }
+
+    @Test
+    void adminCanAssignOnlyAnActiveOfficerAtTheCurrentStageAndJurisdiction() throws Exception {
+        User admin = user(2L, Role.ADMIN, null, null, null);
+        User alternateFieldOfficer =
+                user(11L, Role.OFFICER, "FIELD", "Test State", "Test District");
+        when(userRepository.findByEmail("admin@test.local")).thenReturn(Optional.of(admin));
+        when(userRepository.findById(11L)).thenReturn(Optional.of(alternateFieldOfficer));
+
+        workflow.assign(99L, 11L, "admin@test.local", true);
+
+        assertEquals(alternateFieldOfficer, application.getAssignedOfficer());
+        var assignment = org.mockito.ArgumentCaptor.forClass(ApplicationVerification.class);
+        verify(historyRepository).save(assignment.capture());
+        assertEquals("ASSIGNED", assignment.getValue().getAction());
+        assertEquals(admin, assignment.getValue().getActor());
+        assertEquals(alternateFieldOfficer, assignment.getValue().getAssignedOfficer());
+        assertEquals(GrantApplicationStatus.FIELD_VERIFICATION,
+                assignment.getValue().getPreviousStatus());
+        assertEquals(GrantApplicationStatus.FIELD_VERIFICATION,
+                assignment.getValue().getNewStatus());
+    }
+
+    @Test
+    void adminCannotAssignAnOfficerOutsideTheApplicationJurisdiction() throws Exception {
+        User admin = user(2L, Role.ADMIN, null, null, null);
+        User otherJurisdiction =
+                user(11L, Role.OFFICER, "FIELD", "Other State", "Other District");
+        when(userRepository.findByEmail("admin@test.local")).thenReturn(Optional.of(admin));
+        when(userRepository.findById(11L)).thenReturn(Optional.of(otherJurisdiction));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> workflow.assign(99L, 11L, "admin@test.local", true));
+
+        assertEquals(400, exception.getStatusCode().value());
+        assertEquals(fieldOfficer, application.getAssignedOfficer());
+        verify(historyRepository, never()).save(any(ApplicationVerification.class));
+    }
+
+    @Test
+    void nonAdminCannotAssignApplications() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> workflow.assign(99L, 10L, "field@test.local", false));
+
+        assertEquals(403, exception.getStatusCode().value());
+        verify(historyRepository, never()).save(any(ApplicationVerification.class));
     }
 
     private User user(

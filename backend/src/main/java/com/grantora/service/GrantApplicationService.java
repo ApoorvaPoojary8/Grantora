@@ -219,11 +219,18 @@ public class GrantApplicationService {
 
         validateForSubmission(application);
         GrantApplicationStatus previousStatus = application.getStatus();
-        application.setEligibilityEvaluation(eligibilityScoringService.evaluate(
+        var evaluation = eligibilityScoringService.evaluate(
                 application.getId(),
                 application.getScheme(),
                 application.getBeneficiary(),
-                application.getEligibilityAnswers()));
+                application.getEligibilityAnswers());
+        application.setEligibilityEvaluation(evaluation);
+        if (!"ELIGIBLE".equals(evaluation.eligibilityStatus())) {
+            String message = "NEEDS_MORE_INFORMATION".equals(evaluation.eligibilityStatus())
+                    ? "Complete the missing eligibility information before submitting."
+                    : "This application does not meet the mandatory eligibility criteria.";
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, message);
+        }
         if (application.getSubmittedAt() == null) {
             application.setSubmittedAt(LocalDateTime.now());
         }
@@ -294,11 +301,24 @@ public class GrantApplicationService {
         return toResponse(verificationWorkflowService.escalate(id, email, admin));
     }
 
+    public GrantApplicationResponse assign(
+            Long id, Long officerId, String email, boolean admin) {
+        return toResponse(verificationWorkflowService.assign(id, officerId, email, admin));
+    }
+
     @Transactional(readOnly = true)
     public List<GrantApplicationResponse> getVerificationQueue(String email, boolean admin) {
         return verificationWorkflowService.getQueue(email, admin).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<GrantApplicationResponse> getDisbursementEligibleApplications(
+            Pageable pageable) {
+        return applicationRepository
+                .findAllByStatusOrderByIdDesc(GrantApplicationStatus.APPROVED, pageable)
+                .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -572,13 +592,17 @@ public class GrantApplicationService {
                         application.getBeneficiary().getCategory()),
                 application.getEligibilityEvaluation() == null
                         ? null
-                        : application.getEligibilityEvaluation().eligibilityThreshold());
+                        : application.getEligibilityEvaluation().eligibilityThreshold(),
+                application.requiresStateApproval());
     }
 
     private VerificationHistoryResponse toHistoryResponse(ApplicationVerification item) {
         return new VerificationHistoryResponse(
                 item.getId(),
                 item.getStage().name(),
+                item.getPreviousStatus() == null ? null : item.getPreviousStatus().name(),
+                item.getNewStatus() == null ? null : item.getNewStatus().name(),
+                item.getNextStage() == null ? null : item.getNextStage().name(),
                 item.getAction(),
                 item.getActor() == null ? null : item.getActor().getId(),
                 item.getActor() == null ? "System" : item.getActor().getFullName(),

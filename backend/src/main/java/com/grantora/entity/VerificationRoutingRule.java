@@ -27,6 +27,9 @@ public class VerificationRoutingRule {
     @Column(nullable = false, length = 20)
     private RoutingPriority priority;
 
+    @Column(name = "state_approval_required")
+    private Boolean stateApprovalRequired = true;
+
     public Long getId() { return id; }
     public BigDecimal getMinimumScore() { return minimumScore; }
     public void setMinimumScore(BigDecimal minimumScore) { this.minimumScore = minimumScore; }
@@ -38,4 +41,10 @@ public class VerificationRoutingRule {
     public void setMaximumAmount(BigDecimal maximumAmount) { this.maximumAmount = maximumAmount; }
     public RoutingPriority getPriority() { return priority; }
     public void setPriority(RoutingPriority priority) { this.priority = priority; }
+    public boolean isStateApprovalRequired() {
+        return !Boolean.FALSE.equals(stateApprovalRequired);
+    }
+    public void setStateApprovalRequired(Boolean stateApprovalRequired) {
+        this.stateApprovalRequired = stateApprovalRequired;
+    }
 }

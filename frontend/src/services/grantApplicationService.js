@@ -40,6 +40,12 @@ export const submitVerificationDecision = (id, data) =>
 export const escalateApplication = (id) =>
   api.post(`${API_URL}/${id}/escalate`);
 
+export const assignApplicationOfficer = (id, officerId) =>
+  api.post(`${API_URL}/${id}/assignment`, { officerId });
+
+export const getDisbursementEligibleApplications = (params) =>
+  api.get(`${API_URL}/disbursement/eligible`, { params });
+
 export const uploadApplicationDocument = (id, file) => {
   const body = new FormData();
   body.append("file", file);

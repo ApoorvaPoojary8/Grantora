@@ -62,6 +62,7 @@ public class SecurityConfig {
 
                 .requestMatchers("/api/applications/me").hasRole("BENEFICIARY")
                 .requestMatchers("/api/applications/admin").hasRole("ADMIN")
+                .requestMatchers("/api/applications/disbursement/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/applications/*/submit")
                     .hasRole("BENEFICIARY")
                 .requestMatchers(HttpMethod.POST, "/api/applications/*/withdraw")
@@ -72,6 +73,8 @@ public class SecurityConfig {
                     .hasAnyRole("ADMIN", "OFFICER")
                 .requestMatchers(HttpMethod.POST, "/api/applications/*/escalate")
                     .hasAnyRole("ADMIN", "OFFICER")
+                .requestMatchers(HttpMethod.POST, "/api/applications/*/assignment")
+                    .hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/applications/*/documents")
                     .hasRole("BENEFICIARY")
                 .requestMatchers(HttpMethod.PATCH, "/api/applications/**")

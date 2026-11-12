@@ -5,6 +5,7 @@ import com.grantora.dto.GrantApplicationResponse;
 import com.grantora.dto.GrantApplicationStatusRequest;
 import com.grantora.dto.GrantApplicationUpdateRequest;
 import com.grantora.dto.ApplicationDocumentResponse;
+import com.grantora.dto.OfficerAssignmentRequest;
 import com.grantora.dto.VerificationDecisionRequest;
 import com.grantora.entity.ApplicationDocument;
 import com.grantora.entity.GrantApplicationStatus;
@@ -144,6 +145,23 @@ public class GrantApplicationController {
             Authentication authentication) {
         return applicationService.escalate(
                 id, authentication.getName(), hasRole(authentication, "ROLE_ADMIN"));
+    }
+
+    @PostMapping("/{id}/assignment")
+    public GrantApplicationResponse assignOfficer(
+            @PathVariable Long id,
+            Authentication authentication,
+            @Valid @RequestBody OfficerAssignmentRequest request) {
+        return applicationService.assign(
+                id, request.officerId(), authentication.getName(),
+                hasRole(authentication, "ROLE_ADMIN"));
+    }
+
+    @GetMapping("/disbursement/eligible")
+    public Page<GrantApplicationResponse> getDisbursementEligibleApplications(
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+        return applicationService.getDisbursementEligibleApplications(pageable);
     }
 
     @PostMapping(value = "/{id}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

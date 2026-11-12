@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 public record VerificationHistoryResponse(
         Long id,
         String stage,
+        String previousStatus,
+        String newStatus,
+        String nextStage,
         String action,
         Long actorId,
         String actorName,

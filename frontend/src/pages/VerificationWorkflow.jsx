@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, RefreshCw, ShieldCheck } from "lucide-react";
 import api from "../services/api";
 import {
+  assignApplicationOfficer,
   downloadApplicationDocument,
   escalateApplication,
   getVerificationHistory,
@@ -26,6 +27,7 @@ const emptyRule = {
   minimumAmount: "0",
   maximumAmount: "",
   priority: "NORMAL",
+  stateApprovalRequired: true,
 };
 
 const stageNames = {
@@ -65,6 +67,8 @@ function VerificationWorkflow({ historyOnly = false }) {
   const [ruleForm, setRuleForm] = useState(emptyRule);
   const [editingOfficer, setEditingOfficer] = useState(null);
   const [editingRule, setEditingRule] = useState(null);
+  const [assignmentOfficerId, setAssignmentOfficerId] = useState("");
+  const [documentPreview, setDocumentPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -103,6 +107,13 @@ function VerificationWorkflow({ historyOnly = false }) {
     loadData();
   }, [loadData]);
 
+  useEffect(
+    () => () => {
+      if (documentPreview?.url) URL.revokeObjectURL(documentPreview.url);
+    },
+    [documentPreview?.url]
+  );
+
   const selectedStage = selected?.workflowStage;
   const canDecide =
     selected &&
@@ -110,6 +121,17 @@ function VerificationWorkflow({ historyOnly = false }) {
     (isAdmin
       ? selectedStage === "STATE"
       : selected.assignedOfficerId === Number(localStorage.getItem("userId")));
+  const assignableOfficers = selected
+    ? officers.filter((officer) =>
+        officer.active !== false &&
+        officer.officerLevel === selected.workflowStage &&
+        (officer.jurisdictionState || "").trim().toLowerCase() ===
+          (selected.beneficiaryDetails?.state || "").trim().toLowerCase() &&
+        (selected.workflowStage === "STATE" ||
+          (officer.jurisdictionDistrict || "").trim().toLowerCase() ===
+            (selected.beneficiaryDetails?.district || "").trim().toLowerCase())
+      )
+    : [];
   const decisions = useMemo(() => {
     if (selectedStage === "FIELD") return ["VERIFIED", "NEEDS_CORRECTION", "REJECTED"];
     if (selectedStage === "DISTRICT") return ["APPROVED", "NEEDS_CORRECTION", "REJECTED"];
@@ -120,6 +142,13 @@ function VerificationWorkflow({ historyOnly = false }) {
   const handleDecision = async (event) => {
     event.preventDefault();
     if (!selected || !decision) return;
+    if (
+      !window.confirm(
+        `Record ${decision.replaceAll("_", " ")} for application #${selected.id}?`
+      )
+    ) {
+      return;
+    }
     setSaving(true);
     setError("");
     setNotice("");
@@ -163,6 +192,24 @@ function VerificationWorkflow({ historyOnly = false }) {
     }
   };
 
+  const handleAssignment = async (event) => {
+    event.preventDefault();
+    if (!selected || !assignmentOfficerId) return;
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      await assignApplicationOfficer(selected.id, Number(assignmentOfficerId));
+      setNotice(`Application #${selected.id} assigned successfully.`);
+      setSelected(null);
+      await loadData();
+    } catch (requestError) {
+      setError(messageFrom(requestError, "Unable to assign this application."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDownload = async (application, document) => {
     setError("");
     try {
@@ -175,6 +222,20 @@ function VerificationWorkflow({ historyOnly = false }) {
       URL.revokeObjectURL(url);
     } catch (requestError) {
       setError(messageFrom(requestError, "Unable to download this document."));
+    }
+  };
+
+  const handlePreview = async (application, document) => {
+    setError("");
+    try {
+      const response = await downloadApplicationDocument(application.id, document.id);
+      setDocumentPreview({
+        url: URL.createObjectURL(response.data),
+        contentType: document.contentType,
+        fileName: document.fileName,
+      });
+    } catch (requestError) {
+      setError(messageFrom(requestError, "Unable to view this document."));
     }
   };
 
@@ -239,6 +300,7 @@ function VerificationWorkflow({ historyOnly = false }) {
         minimumAmount: Number(ruleForm.minimumAmount),
         maximumAmount:
           ruleForm.maximumAmount === "" ? null : Number(ruleForm.maximumAmount),
+        stateApprovalRequired: Boolean(ruleForm.stateApprovalRequired),
       };
       if (editingRule) {
         await api.put(`/verification/routing-rules/${editingRule.id}`, payload);
@@ -247,7 +309,7 @@ function VerificationWorkflow({ historyOnly = false }) {
       }
       setRuleForm(emptyRule);
       setEditingRule(null);
-      setNotice(editingRule ? "Routing priority rule updated." : "Routing priority rule saved.");
+      setNotice(editingRule ? "Workflow routing rule updated." : "Workflow routing rule saved.");
       await loadData();
     } catch (requestError) {
       setError(messageFrom(requestError, "Unable to save routing rule."));
@@ -275,12 +337,12 @@ function VerificationWorkflow({ historyOnly = false }) {
       <header className="verification-workflow__header">
         <div>
           <span className="verification-workflow__eyebrow">
-            {isAdmin ? "STATE / ADMIN REVIEW" : "JURISDICTION REVIEW"}
+            {isAdmin ? "ADMIN REVIEW" : "OFFICER REVIEW"}
           </span>
           <h2>{historyOnly ? "Verification history" : "Verification workflow"}</h2>
           <p>
-            Every application proceeds Field → District → State. Decisions are
-            recorded with reviewer, time, and remarks.
+            Field and District verification are mandatory. State approval is
+            required when the matching Admin-configured score and grant rule says so.
           </p>
         </div>
         <button type="button" className="verification-button" onClick={loadData} disabled={loading}>
@@ -320,6 +382,7 @@ function VerificationWorkflow({ historyOnly = false }) {
             </div>
             <button type="button" className="verification-button verification-button--primary" onClick={() => {
               setSelected(application);
+              setAssignmentOfficerId(String(application.assignedOfficerId || ""));
               setDecision("");
               setRemarks("");
             }}>
@@ -359,7 +422,10 @@ function VerificationWorkflow({ historyOnly = false }) {
               <p>{selected.applicationDetails}</p>
               <p><strong>Requested amount:</strong> {formatAmount(selected.requestedAmount)}</p>
               <p><strong>Eligibility:</strong> {selected.eligibilityEvaluation?.eligibilityStatus || "Not evaluated"} · {selected.eligibilityEvaluation?.scoreOutOf100 ?? "—"} / 100</p>
+              <p><strong>Eligibility threshold:</strong> {selected.eligibilityThreshold ?? "—"}%</p>
+              <p>{selected.eligibilityEvaluation?.explanation || "No eligibility explanation is available."}</p>
               <p><strong>Routing:</strong> {selected.routingPriority || "NORMAL"}{selected.escalated ? " · Escalated" : ""}</p>
+              <p><strong>State approval:</strong> {selected.stateApprovalRequired ? "Required after District review" : "Not required after District review"}</p>
             </section>
             <section className="verification-detail__wide">
               <h4>Submitted documents</h4>
@@ -371,28 +437,78 @@ function VerificationWorkflow({ historyOnly = false }) {
                       <button type="button" className="verification-button" onClick={() => handleDownload(selected, document)}>
                         <Download size={15} aria-hidden="true" /> Download
                       </button>
+                      <button type="button" className="verification-button" onClick={() => handlePreview(selected, document)}>
+                        View
+                      </button>
                     </li>
                   ))}
                 </ul>
               ) : <p>No supporting documents have been uploaded.</p>}
+              {documentPreview && (
+                <section
+                  className="verification-document-preview"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="verification-document-preview-title"
+                >
+                  <div className="verification-detail__heading">
+                    <h4 id="verification-document-preview-title">{documentPreview.fileName}</h4>
+                    <button
+                      type="button"
+                      className="verification-button"
+                      onClick={() => setDocumentPreview(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {documentPreview.contentType?.startsWith("image/") ? (
+                    <img src={documentPreview.url} alt={documentPreview.fileName} />
+                  ) : (
+                    <iframe src={documentPreview.url} title={documentPreview.fileName} />
+                  )}
+                </section>
+              )}
             </section>
             <section className="verification-detail__wide">
               <h4>Review history</h4>
-              {selected.verificationHistory?.length ? (
+              {selected.verificationHistory?.length || selected.statusHistory?.length ? (
                 <ol className="verification-timeline">
-                  {selected.verificationHistory.map((item) => (
-                    <li key={item.id}>
-                      <strong>{item.stage} · {item.action.replaceAll("_", " ")}</strong>
-                      <span>{item.actorName || "System"} · {new Date(item.createdAt).toLocaleString()}</span>
-                      {item.assignedOfficerName && <span>Assigned to {item.assignedOfficerName}</span>}
-                      {(item.identityVerified || item.addressVerified || item.documentsVerified || item.applicationDetailsVerified) && (
+                  {[
+                    ...(selected.statusHistory || []).map((item) => ({
+                      ...item,
+                      timelineType: "status",
+                    })),
+                    ...(selected.verificationHistory || []).map((item) => ({
+                      ...item,
+                      timelineType: "verification",
+                    })),
+                  ]
+                    .sort((left, right) =>
+                      new Date(left.createdAt) - new Date(right.createdAt)
+                    )
+                    .map((item) => (
+                      <li key={`${item.timelineType}-${item.id}`}>
+                        <strong>
+                          {item.timelineType === "verification"
+                            ? `${item.stage} · ${item.action.replaceAll("_", " ")}`
+                            : item.action.replaceAll("_", " ")}
+                        </strong>
                         <span>
-                          Field checks: identity {item.identityVerified ? "verified" : "not verified"}; address {item.addressVerified ? "verified" : "not verified"}; documents {item.documentsVerified ? "reviewed" : "not reviewed"}; application {item.applicationDetailsVerified ? "checked" : "not checked"}.
+                          {item.actorName || "System"} · {new Date(item.createdAt).toLocaleString()}
+                          {item.previousStatus || item.newStatus
+                            ? ` · ${item.previousStatus || "—"} → ${item.newStatus || "—"}`
+                            : ""}
+                          {item.nextStage ? ` · Next: ${item.nextStage}` : ""}
+                          {item.assignedOfficerName ? ` · Assigned to ${item.assignedOfficerName}` : ""}
                         </span>
-                      )}
-                      {item.remarks && <p>{item.remarks}</p>}
-                    </li>
-                  ))}
+                        {(item.identityVerified || item.addressVerified || item.documentsVerified || item.applicationDetailsVerified) && (
+                          <span>
+                            Field checks: identity {item.identityVerified ? "verified" : "not verified"}; address {item.addressVerified ? "verified" : "not verified"}; documents {item.documentsVerified ? "reviewed" : "not reviewed"}; application {item.applicationDetailsVerified ? "checked" : "not checked"}.
+                          </span>
+                        )}
+                        {item.remarks && <p>{item.remarks}</p>}
+                      </li>
+                    ))}
                 </ol>
               ) : <p>No review actions recorded yet.</p>}
             </section>
@@ -439,9 +555,39 @@ function VerificationWorkflow({ historyOnly = false }) {
           )}
           {isAdmin && !historyOnly && selected.workflowStage !== "STATE" && (
             <p className="verification-hint">
-              Admin may review this application, but decisions are only accepted at the State stage; earlier levels cannot be skipped.
+              Admin may review this application, but cannot bypass its assigned review stage.
               <button type="button" className="verification-button" disabled={saving} onClick={() => handleEscalation(selected)}>Escalate to another reviewer</button>
             </p>
+          )}
+          {isAdmin && !historyOnly && (
+            <form className="verification-form" onSubmit={handleAssignment}>
+              <h4>Assign or reassign this application</h4>
+              <label>
+                {stageNames[selected.workflowStage]}
+                <select
+                  required
+                  value={assignmentOfficerId}
+                  onChange={(event) => setAssignmentOfficerId(event.target.value)}
+                >
+                  <option value="">Select an active officer in jurisdiction</option>
+                  {assignableOfficers.map((officer) => (
+                    <option key={officer.id} value={officer.id}>
+                      {officer.fullName} · {officer.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {assignableOfficers.length === 0 && (
+                <p>No active officer is configured for this stage and jurisdiction.</p>
+              )}
+              <button
+                type="submit"
+                className="verification-button"
+                disabled={saving || !assignmentOfficerId}
+              >
+                Save assignment
+              </button>
+            </form>
           )}
         </section>
       )}
@@ -487,26 +633,28 @@ function VerificationWorkflow({ historyOnly = false }) {
             </form>
           )}
 
-          <h3>Score and grant amount routing rules</h3>
-          <p>Rules set queue priority only. Field, District, and State review remain mandatory for every application.</p>
+          <h3>Score, grant amount, and approval routing rules</h3>
+          <p>Field and District reviews are mandatory. Each matching rule controls whether State approval is additionally required.</p>
           <form className="verification-form" onSubmit={handleRuleCreate}>
             <label>Minimum score<input type="number" min="0" max="100" step="0.01" required value={ruleForm.minimumScore} onChange={(event) => setRuleForm({ ...ruleForm, minimumScore: event.target.value })} /></label>
             <label>Maximum score<input type="number" min="0" max="100" step="0.01" required value={ruleForm.maximumScore} onChange={(event) => setRuleForm({ ...ruleForm, maximumScore: event.target.value })} /></label>
             <label>Minimum grant amount<input type="number" min="0" step="0.01" required value={ruleForm.minimumAmount} onChange={(event) => setRuleForm({ ...ruleForm, minimumAmount: event.target.value })} /></label>
             <label>Maximum amount (optional)<input type="number" min="0" step="0.01" value={ruleForm.maximumAmount} onChange={(event) => setRuleForm({ ...ruleForm, maximumAmount: event.target.value })} /></label>
             <label>Queue priority<select value={ruleForm.priority} onChange={(event) => setRuleForm({ ...ruleForm, priority: event.target.value })}><option value="NORMAL">Normal</option><option value="PRIORITY">Priority</option><option value="URGENT">Urgent</option></select></label>
+            <label>Final state approval<select value={String(ruleForm.stateApprovalRequired)} onChange={(event) => setRuleForm({ ...ruleForm, stateApprovalRequired: event.target.value === "true" })}><option value="true">Required</option><option value="false">Not required after District approval</option></select></label>
             <button className="verification-button verification-button--primary" type="submit" disabled={saving}>{editingRule ? "Save routing rule" : "Add routing rule"}</button>
             {editingRule && <button className="verification-button" type="button" onClick={() => { setEditingRule(null); setRuleForm(emptyRule); }}>Cancel</button>}
           </form>
           <div className="verification-admin__table-wrap">
             <table>
-              <thead><tr><th>Score range</th><th>Grant amount range</th><th>Priority</th><th>Action</th></tr></thead>
+              <thead><tr><th>Score range</th><th>Grant amount range</th><th>Priority</th><th>State approval</th><th>Action</th></tr></thead>
               <tbody>
                 {rules.map((rule) => (
                   <tr key={rule.id}>
                     <td>{rule.minimumScore}–{rule.maximumScore}</td>
                     <td>{formatAmount(rule.minimumAmount)}–{rule.maximumAmount == null ? "No limit" : formatAmount(rule.maximumAmount)}</td>
                     <td>{rule.priority}</td>
+                    <td>{rule.stateApprovalRequired === false ? "Not required" : "Required"}</td>
                     <td>
                       <button className="verification-button" type="button" onClick={() => {
                         setEditingRule(rule);
@@ -516,13 +664,14 @@ function VerificationWorkflow({ historyOnly = false }) {
                           minimumAmount: String(rule.minimumAmount),
                           maximumAmount: rule.maximumAmount == null ? "" : String(rule.maximumAmount),
                           priority: rule.priority,
+                          stateApprovalRequired: rule.stateApprovalRequired !== false,
                         });
                       }}>Edit</button>{" "}
                       <button className="verification-button" type="button" disabled={saving} onClick={() => handleRuleDelete(rule.id)}>Delete</button>
                     </td>
                   </tr>
                 ))}
-                {rules.length === 0 && <tr><td colSpan="4">No custom routing rules. Applications use NORMAL priority.</td></tr>}
+                {rules.length === 0 && <tr><td colSpan="5">No custom routing rules. Applications use NORMAL priority and require State approval.</td></tr>}
               </tbody>
             </table>
           </div>
